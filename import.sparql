@@ -1,0 +1,1 @@
+update=LOAD <http://172.17.0.8/staff.ttl> into graph <http://vitro.mannlib.cornell.edu/default/vitro-kb-2>
