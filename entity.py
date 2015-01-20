@@ -1,7 +1,26 @@
-from namespace import *
+#from namespace import *
 from utility import *
 from rdflib import Graph
 import re
+
+#Prefixes
+PREFIX_APPOINTMENT = "apt"
+PREFIX_AWARD_RECEIPT = "awdrec"
+PREFIX_AWARD = "awd"
+PREFIX_AWARDED_DEGREE = "awdgre"
+PREFIX_CONFERENCE = "conf"
+PREFIX_COURSE = "crs"
+PREFIX_DEGREE = "dgre"
+PREFIX_DOCUMENT = "doc"
+PREFIX_GRANT = "grant"
+PREFIX_JOURNAL = "jrnl"
+PREFIX_MEMBERSHIP = "memb"
+PREFIX_ORGANIZATION = "org"
+PREFIX_PRESENTER = "presr"
+PREFIX_PRESENTATION = "pres"
+PREFIX_REVIEWERSHIP = "rev"
+PREFIX_SITE = "site"
+PREFIX_TEACHER = "tch"
 
 
 class Person():
@@ -110,13 +129,13 @@ class Facility():
         self.name = self.building_name
         if self.room_number:
             self.name = "%s %s" % (self.building_name, self.room_number)
-        self.uri = D[to_identifier("site", self.name)]
+        self.uri = D[to_identifier(PREFIX_SITE, self.name)]
 
     def to_graph(self):
         #Create an RDFLib Graph
         g = Graph()
 
-        building_uri = D[to_identifier("site", self.building_name)]
+        building_uri = D[to_identifier(PREFIX_SITE, self.building_name)]
         g.add((building_uri, RDF.type, VIVO.Building))
         g.add((building_uri, RDFS.label, Literal(self.building_name)))
         if self.room_number:
@@ -128,57 +147,39 @@ class Facility():
         return g
 
 
-class Department():
-
-    def __init__(self, name):
-        self.name = name
-        self.uri = D[to_identifier("org", self.name)]
-
-        self.college_name = None
-
-    def to_graph(self):
-        #Create an RDFLib Graph
-        g = Graph()
-
-        #Department
-        g.add((self.uri, RDF.type, VIVO.AcademicDepartment))
-        g.add((self.uri, RDFS.label, Literal(self.name)))
-
-        #College
-        if self.college_name:
-            college_uri = D[to_identifier("org", self.college_name)]
-            g.add((college_uri, RDF.type, VIVO.College))
-            g.add((college_uri, RDFS.label, Literal(self.college_name)))
-            #Part of
-            g.add((self.uri, OBO.BFO_0000050, college_uri))
-
-        return g
-
-
 class Organization():
 
-    def __init__(self, name):
+    def __init__(self, name, organization_type="Organization"):
         self.name = name
-        self.uri = D[to_identifier("org", self.name)]
+        self.organization_type = organization_type
+        self.uri = D[to_identifier(PREFIX_ORGANIZATION, self.name)]
+
+        self.part_of = None
 
     def to_graph(self):
         #Create an RDFLib Graph
         g = Graph()
 
         #Department
-        g.add((self.uri, RDF.type, FOAF.Organization))
+        g.add((self.uri, RDF.type,
+               FOAF.Organization if self.organization_type == "Organization" else getattr(VIVO, self.organization_type)))
         g.add((self.uri, RDFS.label, Literal(self.name)))
+
+        #Part of
+        if self.part_of:
+            g.add((self.uri, OBO.BFO_0000050, self.part_of.uri))
+
 
         return g
 
 
 class AcademicAppointment():
 
-    def __init__(self, department, person, rank):
+    def __init__(self, person, department, rank):
         self.department = department
         self.person = person
         self.rank = rank
-        self.uri = D[to_hash_identifier("apt", (department.uri, person.uri, rank))]
+        self.uri = D[to_hash_identifier(PREFIX_APPOINTMENT, (department.uri, person.uri, rank))]
 
         self.start_term = None
         self.end_term = None
@@ -203,13 +204,46 @@ class AcademicAppointment():
         return g
 
 
+class AdminAppointment():
+
+    def __init__(self, person, organization, rank):
+        self.person = person
+        self.organization = organization
+        self.rank = rank
+        self.uri = D[to_hash_identifier(PREFIX_APPOINTMENT, (person.uri, organization.uri, rank))]
+
+        self.title = None
+        self.start_term = None
+        self.end_term = None
+
+    def to_graph(self):
+        #Create an RDFLib Graph
+        g = Graph()
+
+        g.add((self.uri, RDF.type, VIVO.FacultyAdministrativePosition))
+        #Title otherwise rank
+        g.add((self.uri, RDFS.label, Literal(self.title or self.rank)))
+        #Related by
+        g.add((self.person.uri, VIVO.relatedBy, self.uri))
+        g.add((self.organization.uri, VIVO.relatedBy, self.uri))
+
+        interval_uri = self.uri + "-interval"
+        interval_start_uri = interval_uri + "-start"
+        interval_end_uri = interval_uri + "-end"
+        add_date_interval(interval_uri, self.uri, g,
+                          interval_start_uri if add_season_date(interval_start_uri, self.start_term, g) else None,
+                          interval_end_uri if add_season_date(interval_end_uri, self.end_term, g) else None)
+
+        return g
+
+
 class Document():
 
     def __init__(self, title, research_group_code, contribution_type_code, person):
         self.title = title
         self.person = person
         self.research_group_code = research_group_code
-        self.uri = D[to_hash_identifier("doc", (person.uri, title, research_group_code))]
+        self.uri = D[to_hash_identifier(PREFIX_DOCUMENT, (person.uri, title, research_group_code))]
         self.contribution_type_code = contribution_type_code
 
         self.contribution_start_year = None
@@ -249,7 +283,7 @@ class Grant():
         self.title = title
         self.grant_role_code = grant_role_code
         self.person = person
-        self.uri = D[to_hash_identifier("grant", (person.uri, title, grant_role_code))]
+        self.uri = D[to_hash_identifier(PREFIX_GRANT, (person.uri, title, grant_role_code))]
 
         self.contribution_start_year = None
         self.contribution_start_month = None
@@ -302,7 +336,7 @@ class Degree():
         self.person = person
         self.organization = organization
         self.degree_name = degree_name
-        self.uri = D[to_hash_identifier("awdgre", (person.uri, organization.uri, degree_name))]
+        self.uri = D[to_hash_identifier(PREFIX_AWARDED_DEGREE, (person.uri, organization.uri, degree_name))]
 
         self.program = None
         self.major = None
@@ -320,7 +354,7 @@ class Degree():
         g.add((self.uri, VIVO.assignedBy, self.organization.uri))
 
         #Relates to degree
-        degree_uri = D[to_identifier("dgre", self.degree_name)]
+        degree_uri = D[to_identifier(PREFIX_DEGREE, self.degree_name)]
         g.add((degree_uri, RDF.type, VIVO.AcademicDegree))
         g.add((degree_uri, RDFS.label, Literal("%s degree" % self.degree_name)))
         g.add((self.uri, VIVO.relates, degree_uri))
@@ -346,5 +380,250 @@ class Degree():
         add_date_interval(interval_uri, educational_process_uri, g,
                           interval_start_uri if add_season_date(interval_start_uri, self.start_term, g) else None,
                           interval_end_uri if add_season_date(interval_end_uri, self.end_term, g) else None)
+
+        return g
+
+
+class Course():
+
+    def __init__(self, person, course_id, start_term):
+        self.person = person
+        self.course_id = num_to_str(course_id)
+        self.start_term = start_term
+        self.uri = D[to_hash_identifier(PREFIX_TEACHER, (person.uri, self.course_id, self.start_term))]
+
+        self.end_term = None
+
+    def to_graph(self):
+        #Create an RDFLib Graph
+        g = Graph()
+
+        #Teacher Role
+        g.add((self.uri, RDF.type, VIVO.TeacherRole))
+
+        #Inheres in person
+        g.add((self.uri, OBO.RO_0000052, self.person.uri))
+
+        #Realized in course
+        course_uri = D[to_identifier(PREFIX_COURSE, self.course_id)]
+        g.add((course_uri, RDF.type, VIVO.Course))
+        g.add((course_uri, RDFS.label, Literal(self.course_id)))
+        g.add((self.uri, OBO.BFO_0000054, course_uri))
+
+        #Interval
+        interval_uri = self.uri + "-interval"
+        interval_start_uri = interval_uri + "-start"
+        interval_end_uri = interval_uri + "-end"
+        add_date_interval(interval_uri, self.uri, g,
+                          interval_start_uri if add_season_date(interval_start_uri, self.start_term, g) else None,
+                          interval_end_uri if add_season_date(interval_end_uri, self.end_term, g) else None)
+
+        return g
+
+
+class ProfessionalMembership():
+
+    def __init__(self, person, organization, position_code):
+        self.person = person
+        self.organization = organization
+        self.position_code = position_code
+        self.uri = D[to_hash_identifier(PREFIX_MEMBERSHIP, (person.uri, organization.uri, position_code))]
+
+        self.contribution_start_year = None
+        self.contribution_start_month = None
+        self.contribution_end_year = None
+        self.contribution_end_month = None
+
+    def to_graph(self):
+        #Create an RDFLib Graph
+        g = Graph()
+
+        #Service provider role
+        g.add((self.uri, RDF.type, OBO.ERO_0000012))
+        #Label is position
+        g.add((self.uri, RDFS.label, Literal(
+            {
+                "GW_OUTREACH_POSITION_CD16": "Member",
+                "GW_OUTREACH_POSITION_CD17": "President",
+                "GW_OUTREACH_POSITION_CD18": "Secretary",
+                "GW_OUTREACH_POSITION_CD19": "Treasurer",
+                "GW_OUTREACH_POSITION_CD20": "Vice-President",
+                "GW_OUTREACH_POSITION_CD21": "Senior Member",
+                "GW_OUTREACH_POSITION_CD22": "Other",
+
+            }[self.position_code]
+        )))
+
+        #Contributes to Organization
+        g.add((self.uri, VIVO.roleContributesTo, self.organization.uri))
+
+        #Inheres in Person
+        g.add((self.uri, OBO.RO_0000052, self.person.uri))
+
+        #Interval
+        interval_uri = self.uri + "-interval"
+        interval_start_uri = interval_uri + "-start"
+        interval_end_uri = interval_uri + "-end"
+        add_date_interval(interval_uri, self.uri, g,
+                          interval_start_uri if add_date(interval_start_uri,
+                                                         self.contribution_start_year,
+                                                         g,
+                                                         self.contribution_start_month) else None,
+                          interval_end_uri if add_date(interval_end_uri,
+                                                       self.contribution_end_year,
+                                                       g,
+                                                       self.contribution_end_month) else None)
+
+        return g
+
+
+class Reviewership():
+
+    def __init__(self, person, service_name, position_code):
+        self.person = person
+        #Service name is the name of the journal
+        self.service_name = service_name
+        self.position_code = position_code
+        self.uri = D[to_hash_identifier(PREFIX_REVIEWERSHIP, (person.uri, service_name, position_code))]
+
+        self.contribution_start_year = None
+        self.contribution_start_month = None
+        self.contribution_end_year = None
+        self.contribution_end_month = None
+
+    def to_graph(self):
+        #Create an RDFLib Graph
+        g = Graph()
+
+        #Reviewer role
+        g.add((self.uri, RDF.type, VIVO.ReviewerRole))
+        #Label is position
+        g.add((self.uri, RDFS.label, Literal(
+            {
+                "GW_OUTREACH_POSITION_CD1": "Editor",
+                "GW_OUTREACH_POSITION_CD2": "Co-Editor",
+                "GW_OUTREACH_POSITION_CD3": "Associate Editor",
+                "GW_OUTREACH_POSITION_CD4": "Editorial Board",
+                "GW_OUTREACH_POSITION_CD5": "Reviewer",
+                "GW_OUTREACH_POSITION_CD6": "Special Issue Editor",
+                "GW_OUTREACH_POSITION_CD7": "Area Editor",
+                "GW_OUTREACH_POSITION_CD8": "Other",
+                "GW_OUTREACH_POSITION_CD9": "Referee",
+                "GW_OUTREACH_POSITION_CD10": "Member",
+                "GW_OUTREACH_POSITION_CD11": "Chair",
+                "GW_OUTREACH_POSITION_CD12": "Co-Chair",
+                "GW_OUTREACH_POSITION_CD22": "Other",
+            }[self.position_code]
+        )))
+
+        #Contributes to Journal
+        #Although it seems not all of these are journals
+        journal_uri = D[to_identifier(PREFIX_JOURNAL, self.service_name)]
+        g.add((journal_uri, RDF.type, BIBO.Journal))
+        g.add((journal_uri, RDFS.label, Literal(self.service_name)))
+        g.add((self.uri, VIVO.roleContributesTo, journal_uri))
+
+        #Inheres in Person
+        g.add((self.uri, OBO.RO_0000052, self.person.uri))
+
+        #Interval
+        interval_uri = self.uri + "-interval"
+        interval_start_uri = interval_uri + "-start"
+        interval_end_uri = interval_uri + "-end"
+        add_date_interval(interval_uri, self.uri, g,
+                          interval_start_uri if add_date(interval_start_uri,
+                                                         self.contribution_start_year,
+                                                         g,
+                                                         self.contribution_start_month) else None,
+                          interval_end_uri if add_date(interval_end_uri,
+                                                       self.contribution_end_year,
+                                                       g,
+                                                       self.contribution_end_month) else None)
+
+        return g
+
+
+class Award():
+
+    def __init__(self, person, organization, title):
+        self.person = person
+        self.organization = organization
+        self.title = title
+        self.uri = D[to_hash_identifier(PREFIX_AWARD_RECEIPT, (person.uri, title))]
+
+        self.contribution_start_year = None
+        self.contribution_start_month = None
+
+    def to_graph(self):
+        #Create an RDFLib Graph
+        g = Graph()
+
+        #Award Receipt
+        g.add((self.uri, RDF.type, VIVO.AwardReceipt))
+        g.add((self.uri, RDFS.label, Literal("Awarded %s" % self.title)))
+
+        #Assigned by Organization
+        if self.organization:
+            g.add((self.uri, VIVO.assignedBy, self.organization.uri))
+
+        #Relates to Person
+        g.add((self.uri, VIVO.relates, self.person.uri))
+
+        #Relates to Award
+        award_uri = D[to_identifier(PREFIX_AWARD, self.title)]
+        g.add((award_uri, RDF.type, VIVO.Award))
+        g.add((award_uri, RDFS.label, Literal(self.title)))
+        g.add((self.uri, VIVO.relates, award_uri))
+
+        #Date/Time value
+        date_uri = self.uri + "-date"
+        g.add((self.uri, VIVO.dateTimeValue, date_uri))
+        add_date(date_uri, self.contribution_start_year, g, self.contribution_start_month)
+
+        return g
+
+
+class Presentation():
+
+    def __init__(self, person, title, service_name):
+        self.person = person
+        #Title of the presentation
+        self.title = title
+        #Where presented
+        self.service_name = service_name
+        self.uri = D[to_hash_identifier(PREFIX_PRESENTER, (person.uri, title, service_name))]
+
+        self.contribution_start_year = None
+        self.contribution_start_month = None
+
+    def to_graph(self):
+        #Create an RDFLib Graph
+        g = Graph()
+
+        #Presenter role
+        g.add((self.uri, RDF.type, VIVO.PresenterRole))
+
+        #Realized in presentation
+        presentation_uri = D[to_identifier(PREFIX_PRESENTATION, self.title)]
+        g.add((presentation_uri, RDF.type, VIVO.Presentation))
+        g.add((presentation_uri, RDFS.label, Literal(self.title)))
+        g.add((self.uri, OBO.BFO_0000054, presentation_uri))
+        #Presentation part of Conference
+        conference_uri = D[to_identifier(PREFIX_CONFERENCE, self.service_name)]
+        g.add((conference_uri, RDF.type, BIBO.Conference))
+        g.add((conference_uri, RDFS.label, Literal(self.service_name)))
+        g.add((presentation_uri, OBO.BFO_0000050, conference_uri))
+
+        #Inheres in person
+        g.add((self.uri, OBO.RO_0000052, self.person.uri))
+
+        #Date/time interval (no end)
+        interval_uri = self.uri + "-interval"
+        interval_start_uri = interval_uri + "-start"
+        add_date_interval(interval_uri, self.uri, g,
+                          interval_start_uri if add_date(interval_start_uri,
+                                                         self.contribution_start_year,
+                                                         g,
+                                                         self.contribution_start_month) else None)
 
         return g

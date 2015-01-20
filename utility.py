@@ -3,6 +3,8 @@ import hashlib
 from rdflib import Literal, RDF, RDFS, XSD
 from namespace import *
 import re
+import unicodedata
+
 
 def num_to_str(num):
     """
@@ -35,16 +37,23 @@ def to_identifier(prefix, string):
     Converts a string into an identifier with an optional prefix.
 
     A string is converted into an identifier by removing spaces, title casing,
-    and cleaning up newlines.
+    and cleaning up unwanted characters.
     """
-    return "%s-%s" % (prefix, string.replace("\n", " ").title().replace(" ", ""))
+    clean_string = "".join(ch for ch in unicode(string) if unicodedata.category(ch)[0]!="C")
+    clean_string = clean_string\
+        .replace('"', "")\
+        .replace("%", "")\
+        .replace("[", "")\
+        .replace("]", "")
+
+    return "%s-%s" % (prefix, clean_string.title().replace(" ", ""))
 
 
 def to_hash_identifier(prefix, parts):
     """
     Return an identifier composed of the prefix and hash of the parts.
     """
-    hash_parts = hashlib.md5("".join([part for part in parts if part]).encode("utf-8"))
+    hash_parts = hashlib.md5("".join([unicode(part) for part in parts if part]).encode("utf-8"))
     return "%s-%s" % (prefix, hash_parts.hexdigest())
 
 
@@ -80,31 +89,35 @@ def month_str_to_month_int(month_str):
             "December").index(month_str)+1
 
 
-def add_date(date_uri, start_year, g, start_month=None, label=None):
+def add_date(date_uri, year, g, month=None, label=None):
     """
     Adds triples for a date.
+
+    Return True if date was added.
     """
     #Date
-    if start_year:
+    if year:
         g.add((date_uri, RDF.type, VIVO.DateTimeValue))
         #Month and year
-        if start_month:
+        if month:
             g.add((date_uri, VIVO.dateTimePrecision, VIVO.yearMonthPrecision))
             g.add((date_uri, VIVO.dateTime,
                    Literal("%s-%02d-01T00:00:00" % (
-                       start_year, month_str_to_month_int(start_month)),
+                       year, month_str_to_month_int(month)),
                        datatype=XSD.dateTime)))
             g.add((date_uri,
                    RDFS.label,
-                   Literal(label or "%s %s" % (start_month, num_to_str(start_year)))))
+                   Literal(label or "%s %s" % (month, num_to_str(year)))))
         else:
             #Just year
             g.add((date_uri, VIVO.dateTimePrecision, VIVO.yearPrecision))
             g.add((date_uri, VIVO.dateTime,
                    Literal("%s-01-01T00:00:00" % (
-                       start_year),
+                       year),
                        datatype=XSD.dateTime)))
-            g.add((date_uri, RDFS.label, Literal(label or num_to_str(start_year))))
+            g.add((date_uri, RDFS.label, Literal(label or num_to_str(year))))
+        return True
+    return False
 
 term_re = re.compile("(Spring|Summer|Fall) (\d\d\d\d)")
 
@@ -119,8 +132,7 @@ def add_season_date(date_uri, date_str, g):
     if m:
         season = m.group(1)
         year = m.group(2)
-        add_date(date_uri, year, g, season_to_month(season), date_str)
-        return True
+        return add_date(date_uri, year, g, season_to_month(season), date_str)
     return False
 
 
