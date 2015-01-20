@@ -205,11 +205,21 @@ def load_research(data_dir, limit=None, contribution_type_limit=None, research_g
         if ((research_group_codes is None or research_group_code in research_group_codes)
                 and (contribution_type_codes is None or contribution_type_code in contribution_type_codes)):
             r = None
-            if (research_group_code == "LIT_BOOK"
-                or (research_group_code == "LIT_PUBLICATION" and
-                    #Refereed article
-                    contribution_type_code == "GW_RESEARCH_TYPE_CD1")):
-                r = Document(title, research_group_code, contribution_type_code, p)
+            if research_group_code == "LIT_BOOK":
+                r = Book(title, p)
+            elif (research_group_code == "LIT_PUBLICATION" and
+                    contribution_type_code in (
+                              #Refereed article
+                              "GW_RESEARCH_TYPE_CD1",
+                              #Other
+                              "GW_RESEARCH_TYPE_CD8")):
+                r = AcademicArticle(title, p)
+            elif research_group_code == "LIT_PATENT":
+                patent_status_code = ws.cell_value(row_num, 17)
+                #Only accepted patents.  Submitted, pending, other, or blank are ignored.
+                if patent_status_code == "GW_PATENT_STATUS_CD1":
+                    r = Patent(title, p)
+                    r.patent = ws.cell_value(row_num, 16)
             elif research_group_code == "LIT_GRANT":
                 grant_status_code = ws.cell_value(row_num, 19)
                 #Awarded or closed (not proposed or rejected)

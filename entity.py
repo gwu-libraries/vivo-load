@@ -16,6 +16,7 @@ PREFIX_GRANT = "grant"
 PREFIX_JOURNAL = "jrnl"
 PREFIX_MEMBERSHIP = "memb"
 PREFIX_ORGANIZATION = "org"
+PREFIX_PATENT = "pat"
 PREFIX_PRESENTER = "presr"
 PREFIX_PRESENTATION = "pres"
 PREFIX_REVIEWERSHIP = "rev"
@@ -239,12 +240,10 @@ class AdminAppointment():
 
 class Document():
 
-    def __init__(self, title, research_group_code, contribution_type_code, person):
+    def __init__(self, title, person):
         self.title = title
         self.person = person
-        self.research_group_code = research_group_code
-        self.uri = D[to_hash_identifier(PREFIX_DOCUMENT, (person.uri, title, research_group_code))]
-        self.contribution_type_code = contribution_type_code
+        self.uri = D[to_hash_identifier(PREFIX_DOCUMENT, (person.uri, title, self._get_document_type()))]
 
         self.contribution_start_year = None
         self.contribution_start_month = None
@@ -254,11 +253,7 @@ class Document():
         g = Graph()
 
         #Type
-        if self.research_group_code == "LIT_BOOK":
-            g.add((self.uri, RDF.type, BIBO.Book))
-        elif self.research_group_code == "LIT_PUBLICATION":
-            if self.contribution_type_code == "GW_RESEARCH_TYPE_CD1":
-                g.add((self.uri, RDF.type, BIBO.AcademicArticle))
+        g.add((self.uri, RDF.type, self._get_document_type()))
 
         #Person (via Authorship)
         authorship_uri = self.uri + "-auth"
@@ -268,6 +263,57 @@ class Document():
 
         #Title
         g.add((self.uri, RDFS.label, Literal(self.title)))
+
+        #Date
+        date_uri = self.uri + "-date"
+        g.add((self.uri, VIVO.dateTimeValue, date_uri))
+        add_date(date_uri, self.contribution_start_year, g, self.contribution_start_month)
+
+        return g
+
+    def _get_document_type(self):
+        return BIBO.Document
+
+
+class Book(Document):
+
+    def _get_document_type(self):
+        return BIBO.Book
+
+
+class AcademicArticle(Document):
+
+    def _get_document_type(self):
+        return BIBO.AcademicArticle
+
+
+class Patent():
+
+    def __init__(self, title, person):
+        self.title = title
+        self.person = person
+        self.uri = D[to_hash_identifier(PREFIX_PATENT, (person.uri, title))]
+
+        self.contribution_start_year = None
+        self.contribution_start_month = None
+        self.patent = None
+
+    def to_graph(self):
+        #Create an RDFLib Graph
+        g = Graph()
+
+        #Type
+        g.add((self.uri, RDF.type, BIBO.Patent))
+
+        #Assignee
+        g.add((self.uri, VIVO.assignee, self.person.uri))
+
+        #Title
+        g.add((self.uri, RDFS.label, Literal(self.title)))
+
+        #Patent
+        if self.patent:
+            g.add((self.uri, VIVO.patentNumber, Literal(num_to_str(self.patent))))
 
         #Date
         date_uri = self.uri + "-date"
