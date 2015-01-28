@@ -41,7 +41,7 @@ def load_faculty(data_dir, load_vcards=True, load_facilities=True, load_departme
     g.bind('vcard', VCARD)
     g.bind('obo', OBO)
 
-    gwu = Organization(GWU, organization_type="University")
+    gwu = Organization(GWU, organization_type="University", is_gw=True)
     g += gwu.to_graph()
 
     wb = xlrd.open_workbook(os.path.join(data_dir, "faculty.xlsx"))
@@ -83,12 +83,12 @@ def load_faculty(data_dir, load_vcards=True, load_facilities=True, load_departme
         if load_departments:
             college_name = ws.cell_value(row_num, 4)
             if college_name:
-                c = Organization(college_name, organization_type="College")
+                c = Organization(college_name, organization_type="College", is_gw=True)
                 c.part_of = gwu
                 g += c.to_graph()
                 department_name = ws.cell_value(row_num, 5)
                 if department_name:
-                    d = Organization(department_name, organization_type="Department")
+                    d = Organization(department_name, organization_type="Department", is_gw=True)
                     d.part_of = c
                     g += d.to_graph()
 
@@ -138,7 +138,7 @@ def load_admin_appointment(data_dir, limit=None):
     g.bind('obo', OBO)
 
     #Create an entry for GWU
-    gwu = Organization(GWU, organization_type="University")
+    gwu = Organization(GWU, organization_type="University", is_gw=True)
     g += gwu.to_graph()
 
     wb = xlrd.open_workbook(os.path.join(data_dir, "Admin Appointment.xlsx"))
@@ -241,7 +241,7 @@ def load_research(data_dir, limit=None, contribution_type_limit=None, research_g
     return g
 
 
-def load_education(data_dir, limit=None):
+def load_education(data_dir, limit=None, degree_type_codes=None, degree_type_limit=None):
     print "Loading education. Limit is %s." % limit
 
     #Create an RDFLib Graph
@@ -255,7 +255,9 @@ def load_education(data_dir, limit=None):
     ws = wb.sheet_by_name(u'education')
     #Skip header row
     row_num = 1
-    while row_num < (limit or ws.nrows):
+    degree_type_count = 0
+    while (row_num < (limit or ws.nrows)
+           and (degree_type_count is None or degree_type_count < degree_type_limit)):
         #Person stub
         gw_id = ws.cell_value(row_num, 0)
         p = Person(gw_id)
@@ -266,7 +268,10 @@ def load_education(data_dir, limit=None):
             o = Organization(org_name)
             g += o.to_graph()
 
+            d = None
             degree_type_code = ws.cell_value(row_num, 7)
+            degree_name = ws.cell_value(row_num, 9)
+            program = ws.cell_value(row_num, 10)
             #Degree types that result in degrees
             if degree_type_code in (
                 #Undergraduate
@@ -277,19 +282,27 @@ def load_education(data_dir, limit=None):
                 "GW_DEGREE_TYPE_CD3",
 
             ):
-                degree_name = ws.cell_value(row_num, 9)
 
-                d = Degree(p, o, degree_name)
-                d.program = ws.cell_value(row_num, 10)
+                d = DegreeEducation(p, o, degree_name)
                 d.major = ws.cell_value(row_num, 11)
+                d.program = program
+            #Otherwise, non-degree education
+            elif degree_type_code in (
+                #Post-Doc
+                "GW_DEGREE_TYPE_CD4",
+                #Post-Grad
+                "GW_DEGREE_TYPE_CD7",
+                #Clinical
+                "GW_DEGREE_TYPE_CD8"
+            ):
+                d = NonDegreeEducation(p, o, degree_name, program)
+                d.degree = degree_name
+            #Not handling GW_DEGREE_TYPE_CD5 = Other
+            if d and (degree_type_codes is None or degree_type_code in degree_type_codes):
                 d.start_term = ws.cell_value(row_num, 13)
                 d.end_term = ws.cell_value(row_num, 14)
                 g += d.to_graph()
-            #Otherwise, non-degree education, e.g.,
-            #GW_DEGREE_TYPE_CD4 = Post-Doc
-            #GW_DEGREE_TYPE_CD5 = Other
-            #GW_DEGREE_TYPE_CD7 = Post-Grad
-            #GW_DEGREE_TYPE_CD8 = Clinical
+                degree_type_count += 1
 
         row_num += 1
     return g
@@ -421,6 +434,8 @@ if __name__ == '__main__':
     research_parser.set_defaults(func=load_research)
 
     education_parser = subparsers.add_parser("education", parents=[parent_parser])
+    education_parser.add_argument("--degree-type-limit", type=int, help="Number of education entities to load.")
+    education_parser.add_argument("--degree-types", nargs="+", dest="degree_type_codes")
     education_parser.set_defaults(func=load_education)
 
     courses_parser = subparsers.add_parser("courses", parents=[parent_parser])

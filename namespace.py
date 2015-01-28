@@ -12,3 +12,5 @@ OBO = Namespace('http://purl.obolibrary.org/obo/')
 BIBO = Namespace('http://purl.org/ontology/bibo/')
 #The FOAF namespace
 FOAF = Namespace('http://xmlns.com/foaf/0.1/')
+#The GW Local namespace
+LOCAL = Namespace('http://vivo.gwu.edu/ontology/local#')

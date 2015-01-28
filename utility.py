@@ -3,7 +3,6 @@ import hashlib
 from rdflib import Literal, RDF, RDFS, XSD
 from namespace import *
 import re
-import unicodedata
 
 
 def num_to_str(num):
@@ -30,23 +29,6 @@ def join_if_not_empty(items, sep=" "):
                 joined += sep
             joined += item
     return joined
-
-
-def to_identifier(prefix, string):
-    """
-    Converts a string into an identifier with an optional prefix.
-
-    A string is converted into an identifier by removing spaces, title casing,
-    and cleaning up unwanted characters.
-    """
-    clean_string = "".join(ch for ch in unicode(string) if unicodedata.category(ch)[0]!="C")
-    clean_string = clean_string\
-        .replace('"', "")\
-        .replace("%", "")\
-        .replace("[", "")\
-        .replace("]", "")
-
-    return "%s-%s" % (prefix, clean_string.title().replace(" ", ""))
 
 
 def to_hash_identifier(prefix, parts):
