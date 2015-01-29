@@ -36,7 +36,6 @@ class Person():
         self.first_name = None
         self.middle_name = None
         self.last_name = None
-        self.email = None
         self.fixed_line = None
         self.fax = None
         self.personal_statement = None
@@ -47,6 +46,7 @@ class Person():
         self.zip = None
         self.country = None
         self.home_department = None
+        self.username = None
 
     def to_graph(self):
         #Create an RDFLib Graph
@@ -80,12 +80,12 @@ class Person():
                 g.add((vcard_name_uri, VCARD.familyName, Literal(self.last_name)))
 
             #Email vcard
-            if self.email:
+            if self.username:
                 vcard_email_uri = D["%s-vcard-email" % self.gw_id]
                 g.add((vcard_email_uri, RDF.type, VCARD.Email))
                 g.add((vcard_email_uri, RDF.type, VCARD.Work))
                 g.add((vcard_uri, VCARD.hasEmail, vcard_email_uri))
-                g.add((vcard_email_uri, VCARD.email, Literal(self.email)))
+                g.add((vcard_email_uri, VCARD.email, Literal("%s@gwu.edu" % self.username)))
 
             #Phone vcard
             if self.fixed_line:
@@ -94,7 +94,7 @@ class Person():
                 g.add((vcard_phone_uri, RDF.type, VCARD.Work))
                 g.add((vcard_phone_uri, RDF.type, VCARD.Voice))
                 g.add((vcard_uri, VCARD.hasTelephone, vcard_phone_uri))
-                g.add((vcard_phone_uri, VCARD.telephone, Literal(self.fixed_line)))
+                g.add((vcard_phone_uri, VCARD.telephone, Literal(num_to_str(self.fixed_line))))
 
             if self.fax:
                 vcard_fax_uri = D["%s-vcard-fax" % self.gw_id]
@@ -102,7 +102,7 @@ class Person():
                 g.add((vcard_fax_uri, RDF.type, VCARD.Work))
                 g.add((vcard_fax_uri, RDF.type, VCARD.Fax))
                 g.add((vcard_uri, VCARD.hasTelephone, vcard_fax_uri))
-                g.add((vcard_fax_uri, VCARD.telephone, Literal(self.fax)))
+                g.add((vcard_fax_uri, VCARD.telephone, Literal(num_to_str(self.fax))))
 
             #Address vcard
             if self.address and self.city and self.zip:
