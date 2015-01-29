@@ -18,6 +18,7 @@ PREFIX_MEMBERSHIP = "memb"
 PREFIX_NON_DEGREE = "nondgre"
 PREFIX_ORGANIZATION = "org"
 PREFIX_PATENT = "pat"
+PREFIX_PERSON = "per"
 PREFIX_PRESENTER = "presr"
 PREFIX_PRESENTATION = "pres"
 PREFIX_REVIEWERSHIP = "rev"
@@ -28,7 +29,7 @@ PREFIX_TEACHER = "tch"
 class Person():
     def __init__(self, gw_id, person_type="FacultyMember", load_vcards=True):
         self.gw_id = gw_id
-        self.uri = D[self.gw_id]
+        self.uri = D[to_hash_identifier(PREFIX_PERSON, (self.gw_id,))]
         self.person_type = person_type
         self.load_vcards = load_vcards
 
@@ -45,6 +46,7 @@ class Person():
         self.state = None
         self.zip = None
         self.country = None
+        self.home_department = None
 
     def to_graph(self):
         #Create an RDFLib Graph
@@ -119,6 +121,10 @@ class Person():
         if self.facility:
             #Location of
             g.add((self.facility.uri, OBO.RO_0001015, self.uri))
+
+        ##Home Department
+        if self.home_department:
+            g.add((self.uri, LOCAL.homeDept, self.home_department.uri))
 
         return g
 

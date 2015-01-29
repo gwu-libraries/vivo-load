@@ -1,33 +1,11 @@
-from SPARQLWrapper import SPARQLWrapper
-import socket
-import codecs
 import os
-import time
 import xlrd
 from entity import *
 import argparse
+from rdflib.compare import graph_diff
+from sparql import load_previous_graph, sparql_load, sparql_delete, serialize
 
 GWU = "The George Washington University"
-
-def serialize(graph, htdocs_dir):
-    filename = time.strftime("load-%Y%m%d%H%M%S.ttl")
-    print "Serializing to %s" % filename
-    with codecs.open(os.path.join(htdocs_dir, filename), "w") as out:
-        graph.serialize(format="turtle", destination=out)
-    return filename
-
-
-def sparql_load(filename):
-    print "Loading %s" % filename
-    ip = socket.gethostbyname(socket.gethostname())
-    sparql = SPARQLWrapper("http://tomcat:8080/vivo/api/sparqlUpdate")
-    sparql.addParameter("email", "vivo_root@gwu.edu")
-    sparql.addParameter("password", "password")
-    sparql.setQuery("""
-        LOAD <http://%s/%s> into graph <http://vitro.mannlib.cornell.edu/default/vitro-kb-2>
-    """ % (ip, filename))
-    sparql.setMethod("POST")
-    sparql.query()
 
 
 def load_faculty(data_dir, load_vcards=True, load_facilities=True, load_departments=True, load_persons=True, limit=None):
@@ -35,11 +13,7 @@ def load_faculty(data_dir, load_vcards=True, load_facilities=True, load_departme
     Loading faculty. Load vcards=%s. Load facilities=%s. Load departments=%s. Load persons=%s. Limit=%s.
     """ % (load_vcards, load_facilities, load_departments, load_persons, limit)
     #Create an RDFLib Graph
-    g = Graph()
-    #Namespace bindings
-    g.bind('vivo', VIVO)
-    g.bind('vcard', VCARD)
-    g.bind('obo', OBO)
+    g = Graph(namespace_manager=ns_manager)
 
     gwu = Organization(GWU, organization_type="University", is_gw=True)
     g += gwu.to_graph()
@@ -56,6 +30,23 @@ def load_faculty(data_dir, load_vcards=True, load_facilities=True, load_departme
             room_number = num_to_str(ws.cell_value(row_num, 11))
             f = Facility(building_name, room_number)
             g += f.to_graph()
+
+        #Department
+        #The department contained in faculty.csv shouldn't be used to create
+        #association with faculty because it doesn't indicate anything about position.
+        #However, it is useful for getting some organizations.
+        d = None
+        if load_departments:
+            college_name = ws.cell_value(row_num, 4)
+            if college_name and college_name != "No College Designated":
+                c = Organization(college_name, organization_type="College", is_gw=True)
+                c.part_of = gwu
+                g += c.to_graph()
+                department_name = ws.cell_value(row_num, 5)
+                if department_name and department_name != "No Department":
+                    d = Organization(department_name, organization_type="Department", is_gw=True)
+                    d.part_of = c
+                    g += d.to_graph()
 
         #Person
         if load_persons:
@@ -74,23 +65,8 @@ def load_faculty(data_dir, load_vcards=True, load_facilities=True, load_departme
             p.fixed_line = ws.cell_value(row_num, 20)
             p.fax = ws.cell_value(row_num, 21)
             p.facility = f
+            p.home_department = d
             g += p.to_graph()
-
-        #Department
-        #The department contained in faculty.csv shouldn't be used to create
-        #association with faculty because it doesn't indicate anything about position.
-        #However, it is useful for getting some organizations.
-        if load_departments:
-            college_name = ws.cell_value(row_num, 4)
-            if college_name:
-                c = Organization(college_name, organization_type="College", is_gw=True)
-                c.part_of = gwu
-                g += c.to_graph()
-                department_name = ws.cell_value(row_num, 5)
-                if department_name:
-                    d = Organization(department_name, organization_type="Department", is_gw=True)
-                    d.part_of = c
-                    g += d.to_graph()
 
         row_num += 1
 
@@ -100,10 +76,7 @@ def load_faculty(data_dir, load_vcards=True, load_facilities=True, load_departme
 def load_academic_appointment(data_dir, limit=None):
     print "Loading academic appointments. Limit is %s." % limit
     #Create an RDFLib Graph
-    g = Graph()
-    #Namespace bindings
-    g.bind('vivo', VIVO)
-    g.bind('obo', OBO)
+    g = Graph(namespace_manager=ns_manager)
 
     wb = xlrd.open_workbook(os.path.join(data_dir, "Academic Appointment.xlsx"))
     ws = wb.sheet_by_name(u'Academic Appointment')
@@ -132,10 +105,7 @@ def load_academic_appointment(data_dir, limit=None):
 def load_admin_appointment(data_dir, limit=None):
     print "Loading admin appointments. Limit is %s." % limit
     #Create an RDFLib Graph
-    g = Graph()
-    #Namespace bindings
-    g.bind('vivo', VIVO)
-    g.bind('obo', OBO)
+    g = Graph(namespace_manager=ns_manager)
 
     #Create an entry for GWU
     gwu = Organization(GWU, organization_type="University", is_gw=True)
@@ -183,10 +153,7 @@ def load_research(data_dir, limit=None, contribution_type_limit=None, research_g
     """ % (limit, contribution_type_limit, contribution_type_codes, research_group_codes)
 
     #Create an RDFLib Graph
-    g = Graph()
-    #Namespace bindings
-    g.bind('vivo', VIVO)
-    g.bind('obo', OBO)
+    g = Graph(namespace_manager=ns_manager)
 
     wb = xlrd.open_workbook(os.path.join(data_dir, "Research.xlsx"))
     ws = wb.sheet_by_name(u'Research')
@@ -242,14 +209,11 @@ def load_research(data_dir, limit=None, contribution_type_limit=None, research_g
 
 
 def load_education(data_dir, limit=None, degree_type_codes=None, degree_type_limit=None):
-    print "Loading education. Limit is %s." % limit
+    print "Loading education. Limit is %s. Degree type codes is %s. Degree type limit is %s" % (
+        limit, degree_type_codes, degree_type_limit)
 
     #Create an RDFLib Graph
-    g = Graph()
-    #Namespace bindings
-    g.bind('vivo', VIVO)
-    g.bind('obo', OBO)
-    g.bind('foaf', FOAF)
+    g = Graph(namespace_manager=ns_manager)
 
     wb = xlrd.open_workbook(os.path.join(data_dir, "education.xlsx"))
     ws = wb.sheet_by_name(u'education')
@@ -257,7 +221,7 @@ def load_education(data_dir, limit=None, degree_type_codes=None, degree_type_lim
     row_num = 1
     degree_type_count = 0
     while (row_num < (limit or ws.nrows)
-           and (degree_type_count is None or degree_type_count < degree_type_limit)):
+           and (degree_type_limit is None or degree_type_count < degree_type_limit)):
         #Person stub
         gw_id = ws.cell_value(row_num, 0)
         p = Person(gw_id)
@@ -312,10 +276,7 @@ def load_courses(data_dir, limit=None):
     print "Loading courses taught. Limit is %s." % limit
 
     #Create an RDFLib Graph
-    g = Graph()
-    #Namespace bindings
-    g.bind('vivo', VIVO)
-    g.bind('obo', OBO)
+    g = Graph(namespace_manager=ns_manager)
 
     wb = xlrd.open_workbook(os.path.join(data_dir, "Course Taught.xlsx"))
     ws = wb.sheet_by_name(u'Course_taght(Banner)')
@@ -342,11 +303,7 @@ def load_service(data_dir, limit=None, service_type_limit=None, service_group_co
           % (limit, service_type_limit, service_group_codes)
 
     #Create an RDFLib Graph
-    g = Graph()
-    #Namespace bindings
-    g.bind('vivo', VIVO)
-    g.bind('obo', OBO)
-    g.bind('foaf', FOAF)
+    g = Graph(namespace_manager=ns_manager)
 
     wb = xlrd.open_workbook(os.path.join(data_dir, "Service.xlsx"))
     ws = wb.sheet_by_name(u'Service')
@@ -402,12 +359,18 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--skip-load", action="store_false", dest="perform_load",
                         help="Generate RDF, but do not load into VIVO.")
+    parser.add_argument("--skip-diff", action="store_false", dest="perform_diff",
+                        help="Load everything, not just the difference with last load.")
     default_data_dir = "./data"
     parser.add_argument("--data-dir", default=default_data_dir, dest="data_dir",
                         help="Directory containing the xlsx. Default is %s" % default_data_dir)
     default_htdocs_dir = "/usr/local/apache2/htdocs"
     parser.add_argument("--htdocs-dir", default=default_htdocs_dir, dest="htdocs_dir",
                         help="Directory from which html documents are served. Default is %s." % default_htdocs_dir)
+    default_graph_dir = "/usr/local/vivo/graphs"
+    parser.add_argument("--graph-dir", default=default_graph_dir, dest="graph_dir",
+                        help="Directory where graphs are archived. Default is %s." % default_graph_dir)
+
 
     parent_parser = argparse.ArgumentParser(add_help=False)
     parent_parser.add_argument("--limit", type=int, help="Number of rows from csv to load.")
@@ -446,19 +409,40 @@ if __name__ == '__main__':
     service_parser.add_argument("--service-groups", nargs="+", dest="service_group_codes")
     service_parser.set_defaults(func=load_service)
 
-
     #Parse
     args = parser.parse_args()
     func_args = vars(args).copy()
+
     #Remove extraneous args
     del func_args["graph"]
     del func_args["func"]
     del func_args["perform_load"]
+    del func_args["perform_diff"]
     del func_args["htdocs_dir"]
+    del func_args["graph_dir"]
 
     #Invoke the function
     g = args.func(**func_args)
-    print g.serialize(format="turtle")
+
+    if args.perform_diff:
+        #Load the previous graph
+        prev_g = load_previous_graph(args.graph_dir, args.graph)
+    else:
+        prev_g = Graph(namespace_manager=ns_manager)
+
+    #Save to graphs archive directory
+    serialize(g, args.graph_dir, args.graph)
+    #Find the diff
+    (g_both, g_del, g_add) = graph_diff(prev_g, g)
+    g_add.namespace_manager = ns_manager
+    g_del.namespace_manager = ns_manager
+
+    #Print the diff
+    print "To add:\n%s" % g_add.serialize(format="turtle")
+    print "To delete:\n%s" % g_del.serialize(format="turtle")
+
     if args.perform_load:
-        load_filename = serialize(g, args.htdocs_dir)
-        sparql_load(load_filename)
+        if len(g_add) > 0:
+            sparql_load(g_add, args.htdocs_dir)
+        if len(g_del) > 0:
+            sparql_delete(g_del)
