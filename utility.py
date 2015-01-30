@@ -4,7 +4,6 @@ from rdflib import Literal, RDF, RDFS, XSD
 from namespace import *
 import re
 
-
 def num_to_str(num):
     """
     Converts a number to a string.
@@ -49,6 +48,19 @@ def season_to_month(season):
         "Fall": 8
     }[season]
 
+months = ("January",
+          "February",
+          "March",
+          "April",
+          "May",
+          "June",
+          "July",
+          "August",
+          "September",
+          "October",
+          "November",
+          "December")
+
 
 def month_str_to_month_int(month_str):
     """
@@ -57,21 +69,17 @@ def month_str_to_month_int(month_str):
     if isinstance(month_str, Number):
         return month_str
 
-    return ("January",
-            "February",
-            "March",
-            "April",
-            "May",
-            "June",
-            "July",
-            "August",
-            "September",
-            "October",
-            "November",
-            "December").index(month_str)+1
+    return months.index(month_str)+1
 
 
-def add_date(date_uri, year, g, month=None, label=None):
+def month_int_to_month_str(month_int):
+    if isinstance(month_int, basestring):
+        return month_int
+
+    return months[month_int-1]
+
+
+def add_date(date_uri, year, g, month=None, day=None, label=None):
     """
     Adds triples for a date.
 
@@ -80,8 +88,18 @@ def add_date(date_uri, year, g, month=None, label=None):
     #Date
     if year:
         g.add((date_uri, RDF.type, VIVO.DateTimeValue))
+        #Day, month, and year
+        if day and month:
+            g.add((date_uri, VIVO.dateTimePrecision, VIVO.yearMonthDayPrecision))
+            g.add((date_uri, VIVO.dateTime,
+                   Literal("%s-%02d-%02dT00:00:00" % (
+                       year, month_str_to_month_int(month), day),
+                       datatype=XSD.dateTime)))
+            g.add((date_uri,
+                   RDFS.label,
+                   Literal(label or "%s %s, %s" % (month_int_to_month_str(month), num_to_str(day), num_to_str(year)))))
         #Month and year
-        if month:
+        elif month:
             g.add((date_uri, VIVO.dateTimePrecision, VIVO.yearMonthPrecision))
             g.add((date_uri, VIVO.dateTime,
                    Literal("%s-%02d-01T00:00:00" % (
@@ -114,7 +132,7 @@ def add_season_date(date_uri, date_str, g):
     if m:
         season = m.group(1)
         year = m.group(2)
-        return add_date(date_uri, year, g, season_to_month(season), date_str)
+        return add_date(date_uri, year, g, season_to_month(season), label=date_str)
     return False
 
 
@@ -129,3 +147,8 @@ def add_date_interval(interval_uri, subject_uri, g, start_uri=None, end_uri=None
             g.add((interval_uri, VIVO.start, start_uri))
         if end_uri:
             g.add((interval_uri, VIVO.end, end_uri))
+
+def strip_gw_prefix(string):
+    if string.startswith("GW_"):
+        return string[3:]
+    return string

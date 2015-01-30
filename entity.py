@@ -335,15 +335,21 @@ class Patent():
 
 class Grant():
 
-    def __init__(self, title, grant_role_code, person):
+    def __init__(self, title, grant_role_code, person, contribution_start_year=None, contribution_start_month=None):
         self.title = title
         self.grant_role_code = grant_role_code
         self.person = person
-        self.uri = D[to_hash_identifier(PREFIX_GRANT, (person.uri, title, grant_role_code))]
+        #Using contribution start year, month to disambiguate grants, but not storing.
+        self.uri = D[to_hash_identifier(PREFIX_GRANT, (person.uri, title, grant_role_code,
+                                                       contribution_start_year, contribution_start_month))]
 
-        self.contribution_start_year = None
-        self.contribution_start_month = None
         self.award_amount = None
+        self.award_begin_year = None
+        self.award_begin_month = None
+        self.award_begin_day = None
+        self.award_end_year = None
+        self.award_end_month = None
+        self.award_end_day = None
 
     def to_graph(self):
         #Create an RDFLib Graph
@@ -371,11 +377,21 @@ class Grant():
         g.add((role_uri, OBO.RO_0000052, self.person.uri))
         g.add((role_uri, VIVO.relatedBy, self.uri))
 
-        #Date
+        #Date interval
         interval_uri = self.uri + "-interval"
-        start_uri = interval_uri + "-start"
-        add_date(start_uri, self.contribution_start_year, g, self.contribution_start_month)
-        add_date_interval(interval_uri, self.uri, g, start_uri)
+        interval_start_uri = interval_uri + "-start"
+        interval_end_uri = interval_uri + "-end"
+        add_date_interval(interval_uri, self.uri, g,
+                          interval_start_uri if add_date(interval_start_uri,
+                                                         self.award_begin_year,
+                                                         g,
+                                                         self.award_begin_month,
+                                                         self.award_begin_day) else None,
+                          interval_end_uri if add_date(interval_end_uri,
+                                                       self.award_end_year,
+                                                       g,
+                                                       self.award_end_month,
+                                                       self.award_end_day) else None)
 
         #Award amount
         if self.award_amount:
@@ -475,14 +491,14 @@ class NonDegreeEducation():
         return g
 
 
-
 class Course():
 
-    def __init__(self, person, course_id, start_term):
+    def __init__(self, person, course_id, subject_id, start_term):
         self.person = person
         self.course_id = num_to_str(course_id)
+        self.subject_id = subject_id
         self.start_term = start_term
-        self.uri = D[to_hash_identifier(PREFIX_TEACHER, (person.uri, self.course_id, self.start_term))]
+        self.uri = D[to_hash_identifier(PREFIX_TEACHER, (person.uri, self.course_id, self.subject_id, self.start_term))]
 
         self.end_term = None
 
@@ -497,9 +513,10 @@ class Course():
         g.add((self.uri, OBO.RO_0000052, self.person.uri))
 
         #Realized in course
-        course_uri = D[to_hash_identifier(PREFIX_COURSE, (self.course_id,))]
+        course_uri = D[to_hash_identifier(PREFIX_COURSE, (self.course_id, self.subject_id))]
         g.add((course_uri, RDF.type, VIVO.Course))
-        g.add((course_uri, RDFS.label, Literal(self.course_id)))
+        course_name = strip_gw_prefix(self.subject_id) + " " + strip_gw_prefix(self.course_id)
+        g.add((course_uri, RDFS.label, Literal(course_name)))
         g.add((self.uri, OBO.BFO_0000054, course_uri))
 
         #Interval

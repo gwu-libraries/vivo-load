@@ -169,6 +169,9 @@ def load_research(data_dir, limit=None, contribution_type_limit=None, research_g
         title = ws.cell_value(row_num, 6)
         research_group_code = ws.cell_value(row_num, 8)
         contribution_type_code = ws.cell_value(row_num, 10)
+        contribution_start_year = ws.cell_value(row_num, 11)
+        contribution_start_month = ws.cell_value(row_num, 12)
+
         if ((research_group_codes is None or research_group_code in research_group_codes)
                 and (contribution_type_codes is None or contribution_type_code in contribution_type_codes)):
             r = None
@@ -194,12 +197,20 @@ def load_research(data_dir, limit=None, contribution_type_limit=None, research_g
                     grant_role_code = ws.cell_value(row_num, 21)
                     #Skip if no grant_role_code
                     if grant_role_code:
-                        r = Grant(title, grant_role_code, p)
+                        r = Grant(title, grant_role_code, p, contribution_start_year, contribution_start_month)
                         r.award_amount = ws.cell_value(row_num, 25)
+                        award_begin_date = ws.cell_value(row_num, 45)
+                        if award_begin_date:
+                            (r.award_begin_year, r.award_begin_month, r.award_begin_day,
+                             hour, minute, nearest_second) = xlrd.xldate_as_tuple(award_begin_date, wb.datemode)
+                        award_end_date = ws.cell_value(row_num, 46)
+                        if award_end_date:
+                            (r.award_end_year, r.award_end_month, r.award_end_day,
+                             hour, minute, nearest_second) = xlrd.xldate_as_tuple(award_end_date, wb.datemode)
 
             if r:
-                r.contribution_start_year = ws.cell_value(row_num, 11)
-                r.contribution_start_month = ws.cell_value(row_num, 12)
+                r.contribution_start_year = contribution_start_year
+                r.contribution_start_month = contribution_start_month
                 r.additional_details = ws.cell_value(row_num, 47)
                 g += r.to_graph()
                 contribution_type_count += 1
@@ -283,15 +294,20 @@ def load_courses(data_dir, limit=None):
     #Skip header row
     row_num = 1
     while row_num < (limit or ws.nrows):
-        #Person stub
-        gw_id = ws.cell_value(row_num, 0)
-        p = Person(gw_id)
+        created_by = ws.cell_value(row_num, 4)
+        #Skip everything not created by Interface.
+        #If not created by Interface, then manually entered.
+        if created_by == "Interface":
+            #Person stub
+            gw_id = ws.cell_value(row_num, 0)
+            p = Person(gw_id)
 
-        course_id = ws.cell_value(row_num, 8)
-        start_term = ws.cell_value(row_num, 10)
-        c = Course(p, course_id, start_term)
-        c.end_term = ws.cell_value(row_num, 11)
-        g += c.to_graph()
+            course_id = ws.cell_value(row_num, 8)
+            subject_id = ws.cell_value(row_num, 9)
+            start_term = ws.cell_value(row_num, 10)
+            c = Course(p, course_id, subject_id, start_term)
+            c.end_term = ws.cell_value(row_num, 11)
+            g += c.to_graph()
 
         row_num += 1
 
