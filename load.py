@@ -1,5 +1,4 @@
 import os
-import xlrd
 from entity import *
 import argparse
 from rdflib.compare import graph_diff
@@ -18,16 +17,16 @@ def load_faculty(data_dir, load_vcards=True, load_facilities=True, load_departme
     gwu = Organization(GWU, organization_type="University", is_gw=True)
     g += gwu.to_graph()
 
-    wb = xlrd.open_workbook(os.path.join(data_dir, "faculty.xlsx"))
-    ws = wb.sheet_by_name(u'faculty')
+    ws = XlWrapper(os.path.join(data_dir, "faculty.xlsx"))
+
     #Skip header row
     row_num = 1
     while row_num < (limit or ws.nrows):
         #Facility
-        building_name = ws.cell_value(row_num, 12)
+        building_name = ws.cell_value(row_num, "Building Name")
         f = None
         if building_name and load_facilities:
-            room_number = num_to_str(ws.cell_value(row_num, 11))
+            room_number = num_to_str(ws.cell_value(row_num, "Room Number"))
             f = Facility(building_name, room_number)
             g += f.to_graph()
 
@@ -37,12 +36,12 @@ def load_faculty(data_dir, load_vcards=True, load_facilities=True, load_departme
         #However, it is useful for getting some organizations.
         d = None
         if load_departments:
-            college_name = ws.cell_value(row_num, 4)
+            college_name = ws.cell_value(row_num, "College Name")
             if college_name and college_name != "No College Designated":
                 c = Organization(college_name, organization_type="College", is_gw=True)
                 c.part_of = gwu
                 g += c.to_graph()
-                department_name = ws.cell_value(row_num, 5)
+                department_name = ws.cell_value(row_num, "Department Name")
                 if department_name and department_name != "No Department":
                     d = Organization(department_name, organization_type="Department", is_gw=True)
                     d.part_of = c
@@ -50,20 +49,20 @@ def load_faculty(data_dir, load_vcards=True, load_facilities=True, load_departme
 
         #Person
         if load_persons:
-            gw_id = ws.cell_value(row_num, 0)
+            gw_id = ws.cell_value(row_num, "Faculty ID")
             p = Person(gw_id, load_vcards=load_vcards)
-            p.first_name = ws.cell_value(row_num, 1)
-            p.middle_name = ws.cell_value(row_num, 2)
-            p.last_name = ws.cell_value(row_num, 3)
-            p.username = ws.cell_value(row_num, 6)
-            p.personal_statement = ws.cell_value(row_num, 9)
-            p.address = ws.cell_value(row_num, 13)
-            p.city = ws.cell_value(row_num, 14)
-            p.state = ws.cell_value(row_num, 15)
-            p.country = ws.cell_value(row_num, 16)
-            p.zip = num_to_str(ws.cell_value(row_num, 17))
-            p.fixed_line = ws.cell_value(row_num, 20)
-            p.fax = ws.cell_value(row_num, 21)
+            p.first_name = ws.cell_value(row_num, "First Name")
+            p.middle_name = ws.cell_value(row_num, "Middle Name")
+            p.last_name = ws.cell_value(row_num, "Last Name")
+            p.username = ws.cell_value(row_num, "User Name")
+            p.personal_statement = ws.cell_value(row_num, "Personal Statement")
+            p.address = ws.cell_value(row_num, "Address")
+            p.city = ws.cell_value(row_num, "City")
+            p.state = ws.cell_value(row_num, "State")
+            p.country = ws.cell_value(row_num, "Country")
+            p.zip = num_to_str(ws.cell_value(row_num, "ZIP"))
+            p.fixed_line = ws.cell_value(row_num, "Fixed Line")
+            p.fax = ws.cell_value(row_num, "FAX")
             p.facility = f
             p.home_department = d
             g += p.to_graph()
@@ -78,24 +77,24 @@ def load_academic_appointment(data_dir, limit=None):
     #Create an RDFLib Graph
     g = Graph(namespace_manager=ns_manager)
 
-    wb = xlrd.open_workbook(os.path.join(data_dir, "Academic Appointment.xlsx"))
-    ws = wb.sheet_by_name(u'Academic Appointment')
+    ws = XlWrapper(os.path.join(data_dir, "Academic Appointment.xlsx"))
+
     #Skip header row
     row_num = 1
     while row_num < (limit or ws.nrows):
         #Person stub
-        gw_id = ws.cell_value(row_num, 0)
+        gw_id = ws.cell_value(row_num, "Faculty ID")
         p = Person(gw_id)
 
         #Department stub
-        department_name = ws.cell_value(row_num, 5)
+        department_name = ws.cell_value(row_num, "Department Name")
         #Skip an appointment without a department
         if department_name:
             o = Organization(department_name)
-            rank = ws.cell_value(row_num, 13)
+            rank = ws.cell_value(row_num, "Rank")
             a = AcademicAppointment(p, o, rank)
-            a.start_term = ws.cell_value(row_num, 15)
-            a.end_term = ws.cell_value(row_num, 16)
+            a.start_term = ws.cell_value(row_num, "Start Term")
+            a.end_term = ws.cell_value(row_num, "End Term")
             g += a.to_graph()
         row_num += 1
 
@@ -111,19 +110,19 @@ def load_admin_appointment(data_dir, limit=None):
     gwu = Organization(GWU, organization_type="University", is_gw=True)
     g += gwu.to_graph()
 
-    wb = xlrd.open_workbook(os.path.join(data_dir, "Admin Appointment.xlsx"))
-    ws = wb.sheet_by_name(u'Admin Appointment')
+    ws = XlWrapper(os.path.join(data_dir, "Admin Appointment.xlsx"))
+
     #Skip header row
     row_num = 1
     while row_num < (limit or ws.nrows):
         #Person stub
-        gw_id = ws.cell_value(row_num, 0)
+        gw_id = ws.cell_value(row_num, "Faculty ID")
         p = Person(gw_id)
 
         #Assuming that departments and colleges already created when
         #faculty loaded
-        college_name = ws.cell_value(row_num, 4)
-        department_name = ws.cell_value(row_num, 5)
+        college_name = ws.cell_value(row_num, "College Name")
+        department_name = ws.cell_value(row_num, "Department Name")
         #If Department name, then Department
         if department_name and department_name != "No Department":
             o = Organization(department_name)
@@ -134,11 +133,11 @@ def load_admin_appointment(data_dir, limit=None):
         else:
             o = gwu
 
-        rank = ws.cell_value(row_num, 13)
+        rank = ws.cell_value(row_num, "Rank")
         a = AdminAppointment(p, o, rank)
-        a.title = ws.cell_value(row_num, 8)
-        a.start_term = ws.cell_value(row_num, 15)
-        a.end_term = ws.cell_value(row_num, 16)
+        a.title = ws.cell_value(row_num, "Title")
+        a.start_term = ws.cell_value(row_num, "Start Term")
+        a.end_term = ws.cell_value(row_num, "End Term")
         g += a.to_graph()
 
         row_num += 1
@@ -155,22 +154,21 @@ def load_research(data_dir, limit=None, contribution_type_limit=None, research_g
     #Create an RDFLib Graph
     g = Graph(namespace_manager=ns_manager)
 
-    wb = xlrd.open_workbook(os.path.join(data_dir, "Research.xlsx"))
-    ws = wb.sheet_by_name(u'Research')
+    ws = XlWrapper(os.path.join(data_dir, "Research.xlsx"))
     #Skip header row
     row_num = 1
     contribution_type_count = 0
     while ((row_num < (limit or ws.nrows))
            and (contribution_type_limit is None or contribution_type_count < contribution_type_limit)):
         #Person stub
-        gw_id = ws.cell_value(row_num, 0)
+        gw_id = ws.cell_value(row_num, "Faculty ID")
         p = Person(gw_id)
 
-        title = ws.cell_value(row_num, 6)
-        research_group_code = ws.cell_value(row_num, 8)
-        contribution_type_code = ws.cell_value(row_num, 10)
-        contribution_start_year = ws.cell_value(row_num, 11)
-        contribution_start_month = ws.cell_value(row_num, 12)
+        title = ws.cell_value(row_num, "Title")
+        research_group_code = ws.cell_value(row_num, "Research Group CD(Headings)")
+        contribution_type_code = ws.cell_value(row_num, "Contribution Type CD")
+        contribution_start_year = ws.cell_value(row_num, "Contribution Start Year")
+        contribution_start_month = ws.cell_value(row_num, "Contribution Start Month")
 
         if ((research_group_codes is None or research_group_code in research_group_codes)
                 and (contribution_type_codes is None or contribution_type_code in contribution_type_codes)):
@@ -185,33 +183,33 @@ def load_research(data_dir, limit=None, contribution_type_limit=None, research_g
                               "GW_RESEARCH_TYPE_CD8")):
                 r = AcademicArticle(title, p)
             elif research_group_code == "LIT_PATENT":
-                patent_status_code = ws.cell_value(row_num, 17)
+                patent_status_code = ws.cell_value(row_num, "Patent Status CD")
                 #Only accepted patents.  Submitted, pending, other, or blank are ignored.
                 if patent_status_code == "GW_PATENT_STATUS_CD1":
                     r = Patent(title, p)
-                    r.patent = ws.cell_value(row_num, 16)
+                    r.patent = ws.cell_value(row_num, "Patent ID")
             elif research_group_code == "LIT_GRANT":
-                grant_status_code = ws.cell_value(row_num, 19)
+                grant_status_code = ws.cell_value(row_num, "Grant Status CD")
                 #Awarded or closed (not proposed or rejected)
                 if grant_status_code in ("GW_GRANT_STATUS_CD3", "GW_GRANT_STATUS_CD5"):
-                    grant_role_code = ws.cell_value(row_num, 21)
+                    grant_role_code = ws.cell_value(row_num, "Grant Role CD")
                     #Skip if no grant_role_code
                     if grant_role_code:
                         r = Grant(title, grant_role_code, p, contribution_start_year, contribution_start_month)
-                        r.award_amount = ws.cell_value(row_num, 25)
-                        award_begin_date = ws.cell_value(row_num, 45)
+                        r.award_amount = ws.cell_value(row_num, "Award Amount")
+                        award_begin_date = ws.cell_value(row_num, "Award Begin Date")
                         if award_begin_date:
                             (r.award_begin_year, r.award_begin_month, r.award_begin_day,
-                             hour, minute, nearest_second) = xlrd.xldate_as_tuple(award_begin_date, wb.datemode)
-                        award_end_date = ws.cell_value(row_num, 46)
+                             hour, minute, nearest_second) = xlrd.xldate_as_tuple(award_begin_date, ws.datemode)
+                        award_end_date = ws.cell_value(row_num, "Award End Date")
                         if award_end_date:
                             (r.award_end_year, r.award_end_month, r.award_end_day,
-                             hour, minute, nearest_second) = xlrd.xldate_as_tuple(award_end_date, wb.datemode)
+                             hour, minute, nearest_second) = xlrd.xldate_as_tuple(award_end_date, ws.datemode)
 
             if r:
                 r.contribution_start_year = contribution_start_year
                 r.contribution_start_month = contribution_start_month
-                r.additional_details = ws.cell_value(row_num, 47)
+                r.additional_details = ws.cell_value(row_num, "Additional Details")
                 g += r.to_graph()
                 contribution_type_count += 1
         row_num += 1
@@ -226,27 +224,26 @@ def load_education(data_dir, limit=None, degree_type_codes=None, degree_type_lim
     #Create an RDFLib Graph
     g = Graph(namespace_manager=ns_manager)
 
-    wb = xlrd.open_workbook(os.path.join(data_dir, "education.xlsx"))
-    ws = wb.sheet_by_name(u'education')
+    ws = XlWrapper(os.path.join(data_dir, "education.xlsx"))
     #Skip header row
     row_num = 1
     degree_type_count = 0
     while (row_num < (limit or ws.nrows)
            and (degree_type_limit is None or degree_type_count < degree_type_limit)):
         #Person stub
-        gw_id = ws.cell_value(row_num, 0)
+        gw_id = ws.cell_value(row_num, "Faculty ID")
         p = Person(gw_id)
 
-        org_name = ws.cell_value(row_num, 6)
+        org_name = ws.cell_value(row_num, "Institution")
         #Skip rows with blank organizations
         if org_name:
             o = Organization(org_name)
             g += o.to_graph()
 
             d = None
-            degree_type_code = ws.cell_value(row_num, 7)
-            degree_name = ws.cell_value(row_num, 9)
-            program = ws.cell_value(row_num, 10)
+            degree_type_code = ws.cell_value(row_num, "Degree Type CD")
+            degree_name = ws.cell_value(row_num, "Degree")
+            program = ws.cell_value(row_num, "Prgram")
             #Degree types that result in degrees
             if degree_type_code in (
                 #Undergraduate
@@ -259,7 +256,7 @@ def load_education(data_dir, limit=None, degree_type_codes=None, degree_type_lim
             ):
 
                 d = DegreeEducation(p, o, degree_name)
-                d.major = ws.cell_value(row_num, 11)
+                d.major = ws.cell_value(row_num, "Major")
                 d.program = program
             #Otherwise, non-degree education
             elif degree_type_code in (
@@ -274,8 +271,8 @@ def load_education(data_dir, limit=None, degree_type_codes=None, degree_type_lim
                 d.degree = degree_name
             #Not handling GW_DEGREE_TYPE_CD5 = Other
             if d and (degree_type_codes is None or degree_type_code in degree_type_codes):
-                d.start_term = ws.cell_value(row_num, 13)
-                d.end_term = ws.cell_value(row_num, 14)
+                d.start_term = ws.cell_value(row_num, "Start Term")
+                d.end_term = ws.cell_value(row_num, "End Term")
                 g += d.to_graph()
                 degree_type_count += 1
 
@@ -289,24 +286,23 @@ def load_courses(data_dir, limit=None):
     #Create an RDFLib Graph
     g = Graph(namespace_manager=ns_manager)
 
-    wb = xlrd.open_workbook(os.path.join(data_dir, "Course Taught.xlsx"))
-    ws = wb.sheet_by_name(u'Course_taght(Banner)')
+    ws = XlWrapper(os.path.join(data_dir, "Course Taught.xlsx"))
     #Skip header row
     row_num = 1
     while row_num < (limit or ws.nrows):
-        created_by = ws.cell_value(row_num, 4)
+        created_by = ws.cell_value(row_num, "Created By")
         #Skip everything not created by Interface.
         #If not created by Interface, then manually entered.
         if created_by == "Interface":
             #Person stub
-            gw_id = ws.cell_value(row_num, 0)
+            gw_id = ws.cell_value(row_num, "Faculty ID")
             p = Person(gw_id)
 
-            course_id = ws.cell_value(row_num, 8)
-            subject_id = ws.cell_value(row_num, 9)
-            start_term = ws.cell_value(row_num, 10)
+            course_id = ws.cell_value(row_num, "Course ID")
+            subject_id = ws.cell_value(row_num, "Subject ID")
+            start_term = ws.cell_value(row_num, "Start Term")
             c = Course(p, course_id, subject_id, start_term)
-            c.end_term = ws.cell_value(row_num, 11)
+            c.end_term = ws.cell_value(row_num, "End Term")
             g += c.to_graph()
 
         row_num += 1
@@ -321,24 +317,23 @@ def load_service(data_dir, limit=None, service_type_limit=None, service_group_co
     #Create an RDFLib Graph
     g = Graph(namespace_manager=ns_manager)
 
-    wb = xlrd.open_workbook(os.path.join(data_dir, "Service.xlsx"))
-    ws = wb.sheet_by_name(u'Service')
+    ws = XlWrapper(os.path.join(data_dir, "Service.xlsx"))
     #Skip header row
     row_num = 1
     service_type_count = 0
     while ((row_num < (limit or ws.nrows))
            and (service_type_limit is None or service_type_count < service_type_limit)):
         #Person stub
-        gw_id = ws.cell_value(row_num, 0)
+        gw_id = ws.cell_value(row_num, "Faculty ID")
         p = Person(gw_id)
 
-        service_group_code = ws.cell_value(row_num, 8)
-        service_name = ws.cell_value(row_num, 16)
-        title = ws.cell_value(row_num, 6)
+        service_group_code = ws.cell_value(row_num, "Service Group CD(Headings)")
+        service_name = ws.cell_value(row_num, "Serviec Name")
+        title = ws.cell_value(row_num, "Title")
         if service_group_codes is None or service_group_code in service_group_codes:
             r = None
             o = None
-            position_code = ws.cell_value(row_num, 18)
+            position_code = ws.cell_value(row_num, "Position CD")
             if service_group_code == "LIT_PROFESSIONAL_MEMBERSHIP":
                 if service_name and position_code:
                     o = Organization(service_name)
@@ -360,10 +355,10 @@ def load_service(data_dir, limit=None, service_type_limit=None, service_group_co
                     r = Presentation(p, title, service_name)
 
             if r:
-                r.contribution_start_year = ws.cell_value(row_num, 11)
-                r.contribution_start_month = ws.cell_value(row_num, 12)
-                r.contribution_end_year = ws.cell_value(row_num, 13)
-                r.contribution_end_month = ws.cell_value(row_num, 14)
+                r.contribution_start_year = ws.cell_value(row_num, "Contribution Start Year")
+                r.contribution_start_month = ws.cell_value(row_num, "Contribution Start Month")
+                r.contribution_end_year = ws.cell_value(row_num, "Contribution End Year")
+                r.contribution_end_month = ws.cell_value(row_num, "Contribution End Month")
                 g += r.to_graph()
                 service_type_count += 1
         row_num += 1

@@ -3,6 +3,8 @@ import hashlib
 from rdflib import Literal, RDF, RDFS, XSD
 from namespace import *
 import re
+import xlrd
+
 
 def num_to_str(num):
     """
@@ -148,7 +150,25 @@ def add_date_interval(interval_uri, subject_uri, g, start_uri=None, end_uri=None
         if end_uri:
             g.add((interval_uri, VIVO.end, end_uri))
 
+
 def strip_gw_prefix(string):
     if string.startswith("GW_"):
         return string[3:]
     return string
+
+
+class XlWrapper():
+
+    def __init__(self, filepath):
+        self.wb = xlrd.open_workbook(filepath)
+        self.ws = self.wb.sheet_by_index(0)
+        self.nrows = self.ws.nrows
+        self.datemode = self.wb.datemode
+
+        #Read column names
+        self.col_names = {}
+        for col_num in range(self.ws.ncols):
+            self.col_names[self.ws.cell_value(0, col_num)] = col_num
+
+    def cell_value(self, row_num, col_name):
+        return self.ws.cell_value(row_num, self.col_names[col_name])
