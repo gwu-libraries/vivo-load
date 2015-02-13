@@ -21,6 +21,7 @@ PREFIX_PATENT = "pat"
 PREFIX_PERSON = "per"
 PREFIX_PRESENTER = "presr"
 PREFIX_PRESENTATION = "pres"
+PREFIX_RESEARCH_AREA = "ra"
 PREFIX_REVIEWERSHIP = "rev"
 PREFIX_SITE = "site"
 PREFIX_TEACHER = "tch"
@@ -47,6 +48,7 @@ class Person():
         self.country = None
         self.home_department = None
         self.username = None
+        self.scholarly_interest = None
 
     def to_graph(self):
         #Create an RDFLib Graph
@@ -116,6 +118,13 @@ class Person():
                     g.add((vcard_address_uri, VCARD.region, Literal(self.state)))
                 g.add((vcard_address_uri, VCARD.postalCode, Literal(self.zip)))
                 g.add((vcard_address_uri, VCARD.country, Literal(self.country or "USA")))
+
+        ##Scholarly interest
+        if self.scholarly_interest:
+            research_area_uri = D[to_hash_identifier(PREFIX_RESEARCH_AREA, [self.scholarly_interest,])]
+            g.add((research_area_uri, RDF.type, SKOS.concept))
+            g.add((research_area_uri, RDFS.label, Literal(self.scholarly_interest)))
+            g.add((self.uri, VIVO.hasResearchArea, research_area_uri))
 
         ##Facility
         if self.facility:
@@ -287,14 +296,45 @@ class Document():
 
 class Book(Document):
 
+    def __init__(self, title, person):
+        Document.__init__(self, title, person)
+
+        self.publisher = None
+
     def _get_document_type(self):
         return BIBO.Book
+
+    def to_graph(self):
+        g = Document.to_graph(self)
+
+        #Publisher
+        if self.publisher:
+            g.add((self.uri, VIVO.publisher, self.publisher.uri))
+
+        return g
 
 
 class AcademicArticle(Document):
 
+    def __init__(self, title, person):
+        Document.__init__(self, title, person)
+
+        self.journal_name = None
+
     def _get_document_type(self):
         return BIBO.AcademicArticle
+
+    def to_graph(self):
+        g = Document.to_graph(self)
+
+        #Journal_name
+        if self.journal_name:
+            journal_uri = D[to_hash_identifier(PREFIX_JOURNAL, (self.journal_name,))]
+            g.add((journal_uri, RDF.type, BIBO.Journal))
+            g.add((journal_uri, RDFS.label, Literal(self.journal_name)))
+            g.add((self.uri, VIVO.hasPublicationVenue, journal_uri))
+
+        return g
 
 
 class Patent():
@@ -350,6 +390,7 @@ class Grant():
         self.award_end_year = None
         self.award_end_month = None
         self.award_end_day = None
+        self.awarded_by = None
 
     def to_graph(self):
         #Create an RDFLib Graph
@@ -394,10 +435,14 @@ class Grant():
                                                        self.award_end_day) else None)
 
         #Award amount
-        if self.award_amount:
+        if self.award_amount and re.search("\d", unicode(self.award_amount)):
             #Extract digits
-            clean_award_amount = "${:,}".format(int(re.sub("\D", "", str(self.award_amount))))
+            clean_award_amount = "${:,}".format(int(re.sub("\D", "", unicode(self.award_amount))))
             g.add((self.uri, VIVO.totalAwardAmount, Literal(clean_award_amount)))
+
+        #Awarded by
+        if self.awarded_by:
+            g.add((self.uri, VIVO.assignedBy, self.awarded_by.uri))
 
         return g
 
@@ -501,6 +546,7 @@ class Course():
         self.uri = D[to_hash_identifier(PREFIX_TEACHER, (person.uri, self.course_id, self.subject_id, self.start_term))]
 
         self.end_term = None
+        self.course_title = None
 
     def to_graph(self):
         #Create an RDFLib Graph
@@ -515,28 +561,29 @@ class Course():
         #Realized in course
         course_uri = D[to_hash_identifier(PREFIX_COURSE, (self.course_id, self.subject_id))]
         g.add((course_uri, RDF.type, VIVO.Course))
-        course_name = strip_gw_prefix(self.subject_id) + " " + strip_gw_prefix(self.course_id)
+        course_name = "%s (%s %s)" % (self.course_title,
+                                      strip_gw_prefix(self.subject_id), strip_gw_prefix(self.course_id))
         g.add((course_uri, RDFS.label, Literal(course_name)))
         g.add((self.uri, OBO.BFO_0000054, course_uri))
 
         #Interval
+        #Start and end are the same
         interval_uri = self.uri + "-interval"
         interval_start_uri = interval_uri + "-start"
-        interval_end_uri = interval_uri + "-end"
         add_date_interval(interval_uri, self.uri, g,
                           interval_start_uri if add_season_date(interval_start_uri, self.start_term, g) else None,
-                          interval_end_uri if add_season_date(interval_end_uri, self.end_term, g) else None)
+                          interval_start_uri if add_season_date(interval_start_uri, self.start_term, g) else None)
 
         return g
 
 
 class ProfessionalMembership():
 
-    def __init__(self, person, organization, position_code):
+    def __init__(self, person, organization, position):
         self.person = person
         self.organization = organization
-        self.position_code = position_code
-        self.uri = D[to_hash_identifier(PREFIX_MEMBERSHIP, (person.uri, organization.uri, position_code))]
+        self.position = position
+        self.uri = D[to_hash_identifier(PREFIX_MEMBERSHIP, (person.uri, organization.uri, position))]
 
         self.contribution_start_year = None
         self.contribution_start_month = None
@@ -550,18 +597,7 @@ class ProfessionalMembership():
         #Service provider role
         g.add((self.uri, RDF.type, OBO.ERO_0000012))
         #Label is position
-        g.add((self.uri, RDFS.label, Literal(
-            {
-                "GW_OUTREACH_POSITION_CD16": "Member",
-                "GW_OUTREACH_POSITION_CD17": "President",
-                "GW_OUTREACH_POSITION_CD18": "Secretary",
-                "GW_OUTREACH_POSITION_CD19": "Treasurer",
-                "GW_OUTREACH_POSITION_CD20": "Vice-President",
-                "GW_OUTREACH_POSITION_CD21": "Senior Member",
-                "GW_OUTREACH_POSITION_CD22": "Other",
-
-            }[self.position_code]
-        )))
+        g.add((self.uri, RDFS.label, Literal(self.position)))
 
         #Contributes to Organization
         g.add((self.uri, VIVO.roleContributesTo, self.organization.uri))
@@ -588,12 +624,12 @@ class ProfessionalMembership():
 
 class Reviewership():
 
-    def __init__(self, person, service_name, position_code):
+    def __init__(self, person, service_name, position):
         self.person = person
         #Service name is the name of the journal
         self.service_name = service_name
-        self.position_code = position_code
-        self.uri = D[to_hash_identifier(PREFIX_REVIEWERSHIP, (person.uri, service_name, position_code))]
+        self.position = position
+        self.uri = D[to_hash_identifier(PREFIX_REVIEWERSHIP, (person.uri, service_name, position))]
 
         self.contribution_start_year = None
         self.contribution_start_month = None
@@ -607,23 +643,7 @@ class Reviewership():
         #Reviewer role
         g.add((self.uri, RDF.type, VIVO.ReviewerRole))
         #Label is position
-        g.add((self.uri, RDFS.label, Literal(
-            {
-                "GW_OUTREACH_POSITION_CD1": "Editor",
-                "GW_OUTREACH_POSITION_CD2": "Co-Editor",
-                "GW_OUTREACH_POSITION_CD3": "Associate Editor",
-                "GW_OUTREACH_POSITION_CD4": "Editorial Board",
-                "GW_OUTREACH_POSITION_CD5": "Reviewer",
-                "GW_OUTREACH_POSITION_CD6": "Special Issue Editor",
-                "GW_OUTREACH_POSITION_CD7": "Area Editor",
-                "GW_OUTREACH_POSITION_CD8": "Other",
-                "GW_OUTREACH_POSITION_CD9": "Referee",
-                "GW_OUTREACH_POSITION_CD10": "Member",
-                "GW_OUTREACH_POSITION_CD11": "Chair",
-                "GW_OUTREACH_POSITION_CD12": "Co-Chair",
-                "GW_OUTREACH_POSITION_CD22": "Other",
-            }[self.position_code]
-        )))
+        g.add((self.uri, RDFS.label, Literal(self.position)))
 
         #Contributes to Journal
         #Although it seems not all of these are journals

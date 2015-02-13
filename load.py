@@ -37,12 +37,12 @@ def load_faculty(data_dir, load_vcards=True, load_facilities=True, load_departme
         d = None
         if load_departments:
             college_name = ws.cell_value(row_num, "College Name")
-            if college_name and college_name != "No College Designated":
+            if college_name and college_name not in ("No College Designated", "University"):
                 c = Organization(college_name, organization_type="College", is_gw=True)
                 c.part_of = gwu
                 g += c.to_graph()
                 department_name = ws.cell_value(row_num, "Department Name")
-                if department_name and department_name != "No Department":
+                if department_name and department_name not in ("No Department", "University-level Dept"):
                     d = Organization(department_name, organization_type="Department", is_gw=True)
                     d.part_of = c
                     g += d.to_graph()
@@ -50,22 +50,26 @@ def load_faculty(data_dir, load_vcards=True, load_facilities=True, load_departme
         #Person
         if load_persons:
             gw_id = ws.cell_value(row_num, "Faculty ID")
-            p = Person(gw_id, load_vcards=load_vcards)
-            p.first_name = ws.cell_value(row_num, "First Name")
-            p.middle_name = ws.cell_value(row_num, "Middle Name")
-            p.last_name = ws.cell_value(row_num, "Last Name")
-            p.username = ws.cell_value(row_num, "User Name")
-            p.personal_statement = ws.cell_value(row_num, "Personal Statement")
-            p.address = ws.cell_value(row_num, "Address")
-            p.city = ws.cell_value(row_num, "City")
-            p.state = ws.cell_value(row_num, "State")
-            p.country = ws.cell_value(row_num, "Country")
-            p.zip = num_to_str(ws.cell_value(row_num, "ZIP"))
-            p.fixed_line = ws.cell_value(row_num, "Fixed Line")
-            p.fax = ws.cell_value(row_num, "FAX")
-            p.facility = f
-            p.home_department = d
-            g += p.to_graph()
+            last_name = ws.cell_value(row_num, "Last Name")
+            first_name = ws.cell_value(row_num, "First Name")
+            if gw_id and first_name and last_name:
+                p = Person(gw_id, load_vcards=load_vcards)
+                p.first_name = first_name
+                p.middle_name = ws.cell_value(row_num, "Middle Name")
+                p.last_name = last_name
+                p.username = ws.cell_value(row_num, "User Name")
+                p.personal_statement = ws.cell_value(row_num, "Personal Statement")
+                p.address = ws.cell_value(row_num, "Address")
+                p.city = ws.cell_value(row_num, "City")
+                p.state = ws.cell_value(row_num, "State")
+                p.country = ws.cell_value(row_num, "Country")
+                p.zip = num_to_str(ws.cell_value(row_num, "ZIP"))
+                p.fixed_line = ws.cell_value(row_num, "Fixed Line")
+                p.fax = ws.cell_value(row_num, "FAX")
+                p.facility = f
+                p.home_department = d
+                p.scholarly_interest = ws.cell_value(row_num, "Area of Scholary Interest")
+                g += p.to_graph()
 
         row_num += 1
 
@@ -117,28 +121,30 @@ def load_admin_appointment(data_dir, limit=None):
     while row_num < (limit or ws.nrows):
         #Person stub
         gw_id = ws.cell_value(row_num, "Faculty ID")
-        p = Person(gw_id)
+        #Skip if missing
+        if gw_id:
+            p = Person(gw_id)
 
-        #Assuming that departments and colleges already created when
-        #faculty loaded
-        college_name = ws.cell_value(row_num, "College Name")
-        department_name = ws.cell_value(row_num, "Department Name")
-        #If Department name, then Department
-        if department_name and department_name != "No Department":
-            o = Organization(department_name)
-        #Else, if College name, then College
-        elif college_name:
-            o = Organization(college_name)
-        #Else GWU
-        else:
-            o = gwu
+            #Assuming that departments and colleges already created when
+            #faculty loaded
+            college_name = ws.cell_value(row_num, "College Name")
+            department_name = ws.cell_value(row_num, "Department Name")
+            #If Department name, then Department
+            if department_name and department_name not in ("No Department", "University-level Dept"):
+                o = Organization(department_name)
+            #Else, if College name, then College
+            elif college_name and college_name not in ("No College Designated", "University"):
+                o = Organization(college_name)
+            #Else GWU
+            else:
+                o = gwu
 
-        rank = ws.cell_value(row_num, "Rank")
-        a = AdminAppointment(p, o, rank)
-        a.title = ws.cell_value(row_num, "Title")
-        a.start_term = ws.cell_value(row_num, "Start Term")
-        a.end_term = ws.cell_value(row_num, "End Term")
-        g += a.to_graph()
+            rank = ws.cell_value(row_num, "Rank")
+            a = AdminAppointment(p, o, rank)
+            a.title = ws.cell_value(row_num, "Title")
+            a.start_term = ws.cell_value(row_num, "Start Term")
+            a.end_term = ws.cell_value(row_num, "End Term")
+            g += a.to_graph()
 
         row_num += 1
 
@@ -149,7 +155,7 @@ def load_research(data_dir, limit=None, contribution_type_limit=None, research_g
     print """
     Loading research. Limit is %s. Contribution type limit is %s. Research group codes is %s.
     Contribution types codes is %s.
-    """ % (limit, contribution_type_limit, contribution_type_codes, research_group_codes)
+    """ % (limit, contribution_type_limit, research_group_codes, contribution_type_codes)
 
     #Create an RDFLib Graph
     g = Graph(namespace_manager=ns_manager)
@@ -169,19 +175,25 @@ def load_research(data_dir, limit=None, contribution_type_limit=None, research_g
         contribution_type_code = ws.cell_value(row_num, "Contribution Type CD")
         contribution_start_year = ws.cell_value(row_num, "Contribution Start Year")
         contribution_start_month = ws.cell_value(row_num, "Contribution Start Month")
-
+        name = ws.cell_value(row_num, "Name")
         if ((research_group_codes is None or research_group_code in research_group_codes)
                 and (contribution_type_codes is None or contribution_type_code in contribution_type_codes)):
             r = None
-            if research_group_code == "LIT_BOOK":
+            if research_group_code == "LIT_BOOK" and title:
                 r = Book(title, p)
+                if name:
+                    o = Organization(name)
+                    g += o.to_graph()
+                    r.publisher = o
             elif (research_group_code == "LIT_PUBLICATION" and
                     contribution_type_code in (
                               #Refereed article
                               "GW_RESEARCH_TYPE_CD1",
                               #Other
-                              "GW_RESEARCH_TYPE_CD8")):
+                              "GW_RESEARCH_TYPE_CD8") and title):
                 r = AcademicArticle(title, p)
+                if name:
+                    r.journal_name = name
             elif research_group_code == "LIT_PATENT":
                 patent_status_code = ws.cell_value(row_num, "Patent Status CD")
                 #Only accepted patents.  Submitted, pending, other, or blank are ignored.
@@ -205,6 +217,11 @@ def load_research(data_dir, limit=None, contribution_type_limit=None, research_g
                         if award_end_date:
                             (r.award_end_year, r.award_end_month, r.award_end_day,
                              hour, minute, nearest_second) = xlrd.xldate_as_tuple(award_end_date, ws.datemode)
+                        name = ws.cell_value(row_num, "Name")
+                        if name:
+                            o = Organization(name)
+                            g += o.to_graph()
+                            r.awarded_by = o
 
             if r:
                 r.contribution_start_year = contribution_start_year
@@ -217,9 +234,9 @@ def load_research(data_dir, limit=None, contribution_type_limit=None, research_g
     return g
 
 
-def load_education(data_dir, limit=None, degree_type_codes=None, degree_type_limit=None):
-    print "Loading education. Limit is %s. Degree type codes is %s. Degree type limit is %s" % (
-        limit, degree_type_codes, degree_type_limit)
+def load_education(data_dir, limit=None, degree_types=None, degree_type_limit=None):
+    print "Loading education. Limit is %s. Degree types is %s. Degree type limit is %s" % (
+        limit, degree_types, degree_type_limit)
 
     #Create an RDFLib Graph
     g = Graph(namespace_manager=ns_manager)
@@ -241,36 +258,30 @@ def load_education(data_dir, limit=None, degree_type_codes=None, degree_type_lim
             g += o.to_graph()
 
             d = None
-            degree_type_code = ws.cell_value(row_num, "Degree Type CD")
+            #Degree Type CD disappeared from spreadsheet so using Degree Type.
+            degree_type = ws.cell_value(row_num, "Degree Type")
             degree_name = ws.cell_value(row_num, "Degree")
             program = ws.cell_value(row_num, "Prgram")
             #Degree types that result in degrees
-            if degree_type_code in (
-                #Undergraduate
-                "GW_DEGREE_TYPE_CD1",
-                #Graduate
-                "GW_DEGREE_TYPE_CD2",
-                #Doctoral
-                "GW_DEGREE_TYPE_CD3",
-
+            if degree_type in (
+                "Undergraduate",
+                "Graduate",
+                "Doctoral"
             ):
 
                 d = DegreeEducation(p, o, degree_name)
                 d.major = ws.cell_value(row_num, "Major")
                 d.program = program
             #Otherwise, non-degree education
-            elif degree_type_code in (
-                #Post-Doc
-                "GW_DEGREE_TYPE_CD4",
-                #Post-Grad
-                "GW_DEGREE_TYPE_CD7",
-                #Clinical
-                "GW_DEGREE_TYPE_CD8"
+            elif degree_type in (
+                "Post Doctoral",
+                "Post Graduate",
+                "Clinical"
             ):
                 d = NonDegreeEducation(p, o, degree_name, program)
                 d.degree = degree_name
             #Not handling GW_DEGREE_TYPE_CD5 = Other
-            if d and (degree_type_codes is None or degree_type_code in degree_type_codes):
+            if d and (degree_types is None or degree_type in degree_types):
                 d.start_term = ws.cell_value(row_num, "Start Term")
                 d.end_term = ws.cell_value(row_num, "End Term")
                 g += d.to_graph()
@@ -302,7 +313,7 @@ def load_courses(data_dir, limit=None):
             subject_id = ws.cell_value(row_num, "Subject ID")
             start_term = ws.cell_value(row_num, "Start Term")
             c = Course(p, course_id, subject_id, start_term)
-            c.end_term = ws.cell_value(row_num, "End Term")
+            c.course_title = ws.cell_value(row_num, "Course Title")
             g += c.to_graph()
 
         row_num += 1
@@ -333,20 +344,20 @@ def load_service(data_dir, limit=None, service_type_limit=None, service_group_co
         if service_group_codes is None or service_group_code in service_group_codes:
             r = None
             o = None
-            position_code = ws.cell_value(row_num, "Position CD")
+            position = ws.cell_value(row_num, "Position")
             if service_group_code == "LIT_PROFESSIONAL_MEMBERSHIP":
-                if service_name and position_code:
+                if service_name and position:
                     o = Organization(service_name)
                     g += o.to_graph()
 
-                    r = ProfessionalMembership(p, o, position_code)
+                    r = ProfessionalMembership(p, o, position)
             elif service_group_code == "LIT_EDITORIAL_SERVICE":
-                if service_name and position_code:
-                    r = Reviewership(p, service_name, position_code)
+                if service_name and position:
+                    r = Reviewership(p, service_name, position)
             elif service_group_code == "LIT_AWARD":
                 if title:
                     if service_name:
-                        #This seems to contain numerous values that are not organizations.
+                        #There seems to contain numerous values that are not organizations.
                         o = Organization(service_name)
                         g += o.to_graph()
                 r = Award(p, o, title)
@@ -372,6 +383,9 @@ if __name__ == '__main__':
                         help="Generate RDF, but do not load into VIVO.")
     parser.add_argument("--skip-diff", action="store_false", dest="perform_diff",
                         help="Load everything, not just the difference with last load.")
+    default_split_size = 10000
+    parser.add_argument("--split-size", type=int, default=default_split_size,
+                        help="Maximum number of triples to include in a single load. Default is %s" % default_split_size)
     default_data_dir = "./data"
     parser.add_argument("--data-dir", default=default_data_dir, dest="data_dir",
                         help="Directory containing the xlsx. Default is %s" % default_data_dir)
@@ -409,7 +423,7 @@ if __name__ == '__main__':
 
     education_parser = subparsers.add_parser("education", parents=[parent_parser])
     education_parser.add_argument("--degree-type-limit", type=int, help="Number of education entities to load.")
-    education_parser.add_argument("--degree-types", nargs="+", dest="degree_type_codes")
+    education_parser.add_argument("--degree-types", nargs="+", dest="degree_types")
     education_parser.set_defaults(func=load_education)
 
     courses_parser = subparsers.add_parser("courses", parents=[parent_parser])
@@ -431,6 +445,7 @@ if __name__ == '__main__':
     del func_args["perform_diff"]
     del func_args["htdocs_dir"]
     del func_args["graph_dir"]
+    del func_args["split_size"]
 
     #Invoke the function
     g = args.func(**func_args)
@@ -442,18 +457,19 @@ if __name__ == '__main__':
         prev_g = Graph(namespace_manager=ns_manager)
 
     #Save to graphs archive directory
-    serialize(g, args.graph_dir, args.graph)
+    if args.perform_load:
+        serialize(g, args.graph_dir, args.graph)
     #Find the diff
     (g_both, g_del, g_add) = graph_diff(prev_g, g)
     g_add.namespace_manager = ns_manager
     g_del.namespace_manager = ns_manager
 
     #Print the diff
-    print "To add:\n%s" % g_add.serialize(format="turtle")
-    print "To delete:\n%s" % g_del.serialize(format="turtle")
+    print "To add %s triples:\n%s" % (len(g_add), g_add.serialize(format="turtle"))
+    print "To delete %s triples:\n%s" % (len(g_del), g_del.serialize(format="turtle"))
 
     if args.perform_load:
         if len(g_add) > 0:
-            sparql_load(g_add, args.htdocs_dir)
+            sparql_load(g_add, args.htdocs_dir, split_size=args.split_size)
         if len(g_del) > 0:
             sparql_delete(g_del)

@@ -152,7 +152,7 @@ def add_date_interval(interval_uri, subject_uri, g, start_uri=None, end_uri=None
 
 
 def strip_gw_prefix(string):
-    if string.startswith("GW_"):
+    if isinstance(string, basestring) and string.startswith("GW_"):
         return string[3:]
     return string
 
@@ -171,4 +171,9 @@ class XlWrapper():
             self.col_names[self.ws.cell_value(0, col_num)] = col_num
 
     def cell_value(self, row_num, col_name):
-        return self.ws.cell_value(row_num, self.col_names[col_name])
+        value = self.ws.cell_value(row_num, self.col_names[col_name])
+
+        #Remove form feed (\f) since they break jena.  Yeah!
+        if isinstance(value, basestring):
+            return value.replace("\f", "")
+        return value

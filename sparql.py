@@ -1,3 +1,4 @@
+from __future__ import division
 from SPARQLWrapper import SPARQLWrapper
 import socket
 import codecs
@@ -5,11 +6,39 @@ import os
 import time
 from namespace import ns_manager
 from rdflib import Graph
+import math
 
-def serialize(graph, dir, prefix):
-    filename = time.strftime(prefix + "-%Y%m%d%H%M%S.ttl")
-    print "Serializing to %s" % filename
-    with codecs.open(os.path.join(dir, filename), "w") as out:
+
+def serialize(graph, filepath, prefix, suffix=None, split_size=None):
+    if split_size:
+        split_num = int(math.ceil(len(graph) / split_size))
+        print "Splitting %s triples into %s parts." % (len(graph), split_num)
+        split_count = 0
+        tr_count = 0
+        graph_part = Graph(namespace_manager=ns_manager)
+        filenames = []
+        for tr in graph:
+            graph_part.add(tr)
+            tr_count += 1
+            if tr_count == split_size:
+                split_count += 1
+                print "%s of %s:" % (split_count, split_num),
+                filenames.append(_serialize(graph_part, filepath, prefix, split_count))
+                tr_count = 0
+                graph_part = Graph(namespace_manager=ns_manager)
+        if len(graph_part) > 0:
+            split_count += 1
+            print "%s of %s:" % (split_count, split_num),
+            filenames.append(_serialize(graph_part, filepath, prefix, split_count))
+        return filenames
+    else:
+        return _serialize(graph, filepath, prefix, suffix)
+
+
+def _serialize(graph, filepath, prefix, suffix=None):
+    filename = "%s-%s%s.ttl" % (prefix, time.strftime("%Y%m%d%H%M%S"), "-" + str(suffix) if suffix else "")
+    print "Serializing %s triples to %s" % (len(graph), filename)
+    with codecs.open(os.path.join(filepath, filename), "w") as out:
         graph.serialize(format="turtle", destination=out)
     return filename
 
@@ -27,13 +56,14 @@ def load_previous_graph(graph_dir, prefix):
     return g
 
 
-def sparql_load(g, htdocs_dir):
-    print "Loading"
-    filename = serialize(g, htdocs_dir, "load")
+def sparql_load(g, htdocs_dir, split_size=None):
+    filenames = serialize(g, htdocs_dir, "load", split_size=split_size)
     ip = socket.gethostbyname(socket.gethostname())
-    sparql_update("""
-        LOAD <http://%s/%s> into graph <http://vitro.mannlib.cornell.edu/default/vitro-kb-2>
-    """ % (ip, filename))
+    for filename in filenames:
+        print "Loading %s" % filename
+        sparql_update("""
+            LOAD <http://%s/%s> into graph <http://vitro.mannlib.cornell.edu/default/vitro-kb-2>
+        """ % (ip, filename))
 
 
 def sparql_delete(g):
