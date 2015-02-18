@@ -194,6 +194,13 @@ def load_research(data_dir, limit=None, contribution_type_limit=None, research_g
                 r = AcademicArticle(title, p)
                 if name:
                     r.journal_name = name
+            elif (research_group_code == "LIT_PUBLICATION" and
+                    contribution_type_code in (
+                              #Abstract
+                              "GW_RESEARCH_TYPE_CD88",) and title):
+                r = ArticleAbstract(title, p)
+                if name:
+                    r.journal_name = name
             elif research_group_code == "LIT_PATENT":
                 patent_status_code = ws.cell_value(row_num, "Patent Status CD")
                 #Only accepted patents.  Submitted, pending, other, or blank are ignored.
@@ -222,6 +229,11 @@ def load_research(data_dir, limit=None, contribution_type_limit=None, research_g
                             o = Organization(name)
                             g += o.to_graph()
                             r.awarded_by = o
+            elif (research_group_code == "LIT_CONFERENCE" and
+                  contribution_type_code in (
+                            #Abstract
+                            "GW_RESEARCH_TYPE_CD90",) and title):
+                    r = ConferenceAbstract(title, p, name)
 
             if r:
                 r.contribution_start_year = contribution_start_year

@@ -337,6 +337,37 @@ class AcademicArticle(Document):
         return g
 
 
+class ArticleAbstract(AcademicArticle):
+
+    def __init__(self, title, person):
+        AcademicArticle.__init__(self, title, person)
+
+    def _get_document_type(self):
+        return VIVO.Abstract
+
+
+class ConferenceAbstract(Document):
+
+    def __init__(self, title, person, conference):
+        Document.__init__(self, title, person)
+
+        self.conference = conference
+
+    def _get_document_type(self):
+        return VIVO.Abstract
+
+    def to_graph(self):
+        g = Document.to_graph(self)
+
+        #Presented at
+        conference_uri = D[to_hash_identifier(PREFIX_CONFERENCE, (self.conference))]
+        g.add((conference_uri, RDF.type, BIBO.Conference))
+        g.add((conference_uri, RDFS.label, Literal(self.conference)))
+        g.add((self.uri, BIBO.presentedAt, conference_uri))
+
+        return g
+
+
 class Patent():
 
     def __init__(self, title, person):
