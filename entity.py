@@ -8,7 +8,7 @@ PREFIX_APPOINTMENT = "apt"
 PREFIX_AWARD_RECEIPT = "awdrec"
 PREFIX_AWARD = "awd"
 PREFIX_AWARDED_DEGREE = "awdgre"
-PREFIX_CONFERENCE = "conf"
+PREFIX_EVENT = "evnt"
 PREFIX_COURSE = "crs"
 PREFIX_DEGREE = "dgre"
 PREFIX_DOCUMENT = "doc"
@@ -314,36 +314,93 @@ class Book(Document):
         return g
 
 
-class AcademicArticle(Document):
+class Article(Document):
 
     def __init__(self, title, person):
         Document.__init__(self, title, person)
 
-        self.journal_name = None
+        self.publication_venue_name = None
 
     def _get_document_type(self):
-        return BIBO.AcademicArticle
+        return BIBO.Article
+
+    def _get_publication_venue_type(self):
+        return BIBO.Periodical
 
     def to_graph(self):
         g = Document.to_graph(self)
 
-        #Journal_name
-        if self.journal_name:
-            journal_uri = D[to_hash_identifier(PREFIX_JOURNAL, (self.journal_name,))]
-            g.add((journal_uri, RDF.type, BIBO.Journal))
-            g.add((journal_uri, RDFS.label, Literal(self.journal_name)))
+        #Publication venue
+        if self.publication_venue_name:
+            journal_uri = D[to_hash_identifier(PREFIX_JOURNAL, (self._get_publication_venue_type(), self.publication_venue_name,))]
+            g.add((journal_uri, RDF.type, self._get_publication_venue_type()))
+            g.add((journal_uri, RDFS.label, Literal(self.publication_venue_name)))
             g.add((self.uri, VIVO.hasPublicationVenue, journal_uri))
 
         return g
 
 
-class ArticleAbstract(AcademicArticle):
+class AcademicArticle(Article):
 
-    def __init__(self, title, person):
-        AcademicArticle.__init__(self, title, person)
+    def _get_document_type(self):
+        return BIBO.AcademicArticle
+
+    def _get_publication_venue_type(self):
+        return BIBO.Journal
+
+
+class ArticleAbstract(AcademicArticle):
 
     def _get_document_type(self):
         return VIVO.Abstract
+
+
+class Review(AcademicArticle):
+
+    def _get_document_type(self):
+        return VIVO.Review
+
+
+class ReferenceArticle(Article):
+    #Article in Dictionary or Encyclopedia
+
+    def _get_publication_venue_type(self):
+        return BIBO.ReferenceSource
+
+
+class Letter(AcademicArticle):
+
+    def _get_document_type(self):
+        return BIBO.Letter
+
+
+class Chapter(Article):
+
+    def _get_document_type(self):
+        return BIBO.Chapter
+
+    def _get_publication_venue_type(self):
+        return BIBO.Book
+
+
+class Report(Document):
+
+    def __init__(self, title, person):
+        Document.__init__(self, title, person)
+
+        self.distributor = None
+
+    def _get_document_type(self):
+        return BIBO.Report
+
+    def to_graph(self):
+        g = Document.to_graph(self)
+
+        #Distributor
+        if self.distributor:
+            g.add((self.uri, BIBO.distributor, self.distributor.uri))
+
+        return g
 
 
 class ConferenceAbstract(Document):
@@ -360,7 +417,7 @@ class ConferenceAbstract(Document):
         g = Document.to_graph(self)
 
         #Presented at
-        conference_uri = D[to_hash_identifier(PREFIX_CONFERENCE, (self.conference))]
+        conference_uri = D[to_hash_identifier(PREFIX_EVENT, (self.conference,))]
         g.add((conference_uri, RDF.type, BIBO.Conference))
         g.add((conference_uri, RDFS.label, Literal(self.conference)))
         g.add((self.uri, BIBO.presentedAt, conference_uri))
@@ -756,6 +813,9 @@ class Presentation():
         self.contribution_start_year = None
         self.contribution_start_month = None
 
+    def _get_event_type(self):
+        return BIBO.Conference
+
     def to_graph(self):
         #Create an RDFLib Graph
         g = Graph()
@@ -768,11 +828,11 @@ class Presentation():
         g.add((presentation_uri, RDF.type, VIVO.Presentation))
         g.add((presentation_uri, RDFS.label, Literal(self.title)))
         g.add((self.uri, OBO.BFO_0000054, presentation_uri))
-        #Presentation part of Conference
-        conference_uri = D[to_hash_identifier(PREFIX_CONFERENCE, (self.service_name,))]
-        g.add((conference_uri, RDF.type, BIBO.Conference))
-        g.add((conference_uri, RDFS.label, Literal(self.service_name)))
-        g.add((presentation_uri, OBO.BFO_0000050, conference_uri))
+        #Presentation part of Event
+        event_uri = D[to_hash_identifier(PREFIX_EVENT, (self.service_name,))]
+        g.add((event_uri, RDF.type, self._get_event_type()))
+        g.add((event_uri, RDFS.label, Literal(self.service_name)))
+        g.add((presentation_uri, OBO.BFO_0000050, event_uri))
 
         #Inheres in person
         g.add((self.uri, OBO.RO_0000052, self.person.uri))
@@ -787,3 +847,12 @@ class Presentation():
                                                          self.contribution_start_month) else None)
 
         return g
+
+
+class Testimony(Presentation):
+
+    def __init__(self, person, title, name):
+        Presentation.__init__(self, person, title, name)
+
+    def _get_event_type(self):
+        return BIBO.Hearing

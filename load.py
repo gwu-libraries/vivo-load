@@ -179,34 +179,104 @@ def load_research(data_dir, limit=None, contribution_type_limit=None, research_g
         if ((research_group_codes is None or research_group_code in research_group_codes)
                 and (contribution_type_codes is None or contribution_type_code in contribution_type_codes)):
             r = None
+            #Book
             if research_group_code == "LIT_BOOK" and title:
                 r = Book(title, p)
                 if name:
                     o = Organization(name)
                     g += o.to_graph()
                     r.publisher = o
+            #Report
+            elif (research_group_code == "LIT_PUBLICATION" and
+                    contribution_type_code in (
+                              #Report
+                              "GW_RESEARCH_TYPE_CD5",
+                              #Policy brief
+                              "GW_RESEARCH_TYPE_CD68", ) and title):
+                r = Report(title, p)
+                if name:
+                    o = Organization(name)
+                    g += o.to_graph()
+                    r.distributor = o
+            #Article
+            elif (research_group_code == "LIT_PUBLICATION" and
+                    contribution_type_code in (
+                              #Essay
+                              "GW_RESEARCH_TYPE_CD2",
+                              #Non-refereed article
+                              "GW_RESEARCH_TYPE_CD4" ) and title):
+                r = Article(title, p)
+                if name:
+                    r.publication_venue_name = name
+            #Academic article
             elif (research_group_code == "LIT_PUBLICATION" and
                     contribution_type_code in (
                               #Refereed article
                               "GW_RESEARCH_TYPE_CD1",
                               #Other
-                              "GW_RESEARCH_TYPE_CD8") and title):
+                              "GW_RESEARCH_TYPE_CD8",
+                              #Invited article
+                              "GW_RESEARCH_TYPE_CD67",
+                              #Law review and journal
+                              "GW_RESEARCH_TYPE_CD74" ) and title):
                 r = AcademicArticle(title, p)
                 if name:
-                    r.journal_name = name
+                    r.publication_venue_name = name
+            #Article abstract
             elif (research_group_code == "LIT_PUBLICATION" and
                     contribution_type_code in (
-                              #Abstract
-                              "GW_RESEARCH_TYPE_CD88",) and title):
+                        #Abstract
+                        "GW_RESEARCH_TYPE_CD88",) and title):
                 r = ArticleAbstract(title, p)
                 if name:
-                    r.journal_name = name
+                    r.publication_venue_name = name
+            #Review
+            elif (research_group_code == "LIT_PUBLICATION" and
+                    contribution_type_code in (
+                        #Critique and review
+                        "GW_RESEARCH_TYPE_CD7",
+                        #Book review
+                        "GW_RESEARCH_TYPE_CD75",) and title):
+                r = Review(title, p)
+                if name:
+                    r.publication_venue_name = name
+            #Reference article
+            elif (research_group_code == "LIT_PUBLICATION" and
+                    contribution_type_code in (
+                        #Dictionary entry
+                        "GW_RESEARCH_TYPE_CD86",
+                        #Encyclopedia entry
+                        "GW_RESEARCH_TYPE_CD87",) and title):
+                r = ReferenceArticle(title, p)
+                if name:
+                    r.publication_venue_name = name
+            #Letter
+            elif (research_group_code == "LIT_PUBLICATION" and
+                    contribution_type_code in (
+                        #Letter
+                        "GW_RESEARCH_TYPE_CD89",) and title):
+                r = Letter(title, p)
+                if name:
+                    r.publication_venue_name = name
+            #Testimony
+            elif (research_group_code == "LIT_PUBLICATION" and
+                    contribution_type_code in (
+                        #Govt. Testimony
+                        "GW_RESEARCH_TYPE_CD76",) and title and name):
+                r = Testimony(p, title, name)
+            #Chapter
+            elif research_group_code == "LIT_CHAPTER" and title:
+                r = Chapter(title, p)
+                if name:
+                    r.publication_venue_name = name
+            #Patent
             elif research_group_code == "LIT_PATENT":
                 patent_status_code = ws.cell_value(row_num, "Patent Status CD")
                 #Only accepted patents.  Submitted, pending, other, or blank are ignored.
                 if patent_status_code == "GW_PATENT_STATUS_CD1":
                     r = Patent(title, p)
                     r.patent = ws.cell_value(row_num, "Patent ID")
+            #Grant
             elif research_group_code == "LIT_GRANT":
                 grant_status_code = ws.cell_value(row_num, "Grant Status CD")
                 #Awarded or closed (not proposed or rejected)
@@ -229,6 +299,7 @@ def load_research(data_dir, limit=None, contribution_type_limit=None, research_g
                             o = Organization(name)
                             g += o.to_graph()
                             r.awarded_by = o
+            #Conference abstract
             elif (research_group_code == "LIT_CONFERENCE" and
                   contribution_type_code in (
                             #Abstract
