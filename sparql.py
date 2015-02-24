@@ -14,21 +14,9 @@ def serialize(graph, filepath, prefix, suffix=None, split_size=None):
         split_num = int(math.ceil(len(graph) / split_size))
         print "Splitting %s triples into %s parts." % (len(graph), split_num)
         split_count = 0
-        tr_count = 0
-        graph_part = Graph(namespace_manager=ns_manager)
         filenames = []
-        for tr in graph:
-            graph_part.add(tr)
-            tr_count += 1
-            if tr_count == split_size:
-                split_count += 1
-                print "%s of %s:" % (split_count, split_num),
-                filenames.append(_serialize(graph_part, filepath, prefix, split_count))
-                tr_count = 0
-                graph_part = Graph(namespace_manager=ns_manager)
-        if len(graph_part) > 0:
+        for graph_part in graph_split_generator(graph, split_size):
             split_count += 1
-            print "%s of %s:" % (split_count, split_num),
             filenames.append(_serialize(graph_part, filepath, prefix, split_count))
         return filenames
     else:
@@ -66,8 +54,19 @@ def sparql_load(g, htdocs_dir, split_size=None):
         """ % (ip, filename))
 
 
-def sparql_delete(g):
-    print "Deleting"
+def sparql_delete(g, split_size=None):
+    if split_size:
+        split_num = int(math.ceil(len(g) / split_size))
+        print "Splitting %s triples into %s parts for deleting." % (len(g), split_num)
+        for graph_part in graph_split_generator(g, split_size):
+            print "Deleting %s triples." % len(graph_part)
+            _sparql_delete(graph_part)
+    else:
+        print "Deleting %s triples." % len(g)
+        _sparql_delete(g)
+
+
+def _sparql_delete(g):
     #Need to construct query
     ns_lines = []
     triple_lines = []
@@ -91,3 +90,23 @@ def sparql_update(query):
     sparql.setQuery(query)
     sparql.setMethod("POST")
     sparql.query()
+
+
+def graph_split_generator(graph, split_size):
+    split_num = int(math.ceil(len(graph) / split_size))
+    split_count = 0
+    tr_count = 0
+    graph_part = Graph(namespace_manager=ns_manager)
+    for tr in graph:
+        graph_part.add(tr)
+        tr_count += 1
+        if tr_count == split_size:
+            split_count += 1
+            print "%s of %s:" % (split_count, split_num),
+            yield graph_part
+            tr_count = 0
+            graph_part = Graph(namespace_manager=ns_manager)
+    if len(graph_part) > 0:
+        split_count += 1
+        print "%s of %s:" % (split_count, split_num),
+        yield graph_part

@@ -469,6 +469,9 @@ if __name__ == '__main__':
     default_split_size = 10000
     parser.add_argument("--split-size", type=int, default=default_split_size,
                         help="Maximum number of triples to include in a single load. Default is %s" % default_split_size)
+    default_delete_split_size = 2500
+    parser.add_argument("--delete-split-size", type=int, default=default_delete_split_size,
+                        help="Maximum number of triples to include in a single delete. Default is %s" % default_delete_split_size)
     default_data_dir = "./data"
     parser.add_argument("--data-dir", default=default_data_dir, dest="data_dir",
                         help="Directory containing the xlsx. Default is %s" % default_data_dir)
@@ -529,6 +532,7 @@ if __name__ == '__main__':
     del func_args["htdocs_dir"]
     del func_args["graph_dir"]
     del func_args["split_size"]
+    del func_args["delete_split_size"]
 
     #Invoke the function
     g = args.func(**func_args)
@@ -555,4 +559,4 @@ if __name__ == '__main__':
         if len(g_add) > 0:
             sparql_load(g_add, args.htdocs_dir, split_size=args.split_size)
         if len(g_del) > 0:
-            sparql_delete(g_del)
+            sparql_delete(g_del, split_size=args.delete_split_size)
