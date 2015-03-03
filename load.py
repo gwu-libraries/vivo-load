@@ -7,10 +7,10 @@ from sparql import load_previous_graph, sparql_load, sparql_delete, serialize
 GWU = "The George Washington University"
 
 
-def load_faculty(data_dir, load_vcards=True, load_facilities=True, load_departments=True, load_persons=True, limit=None):
+def load_faculty(data_dir, load_vcards=True, load_departments=True, load_persons=True, limit=None):
     print """
-    Loading faculty. Load vcards=%s. Load facilities=%s. Load departments=%s. Load persons=%s. Limit=%s.
-    """ % (load_vcards, load_facilities, load_departments, load_persons, limit)
+    Loading faculty. Load vcards=%s. Load departments=%s. Load persons=%s. Limit=%s.
+    """ % (load_vcards, load_departments, load_persons, limit)
     #Create an RDFLib Graph
     g = Graph(namespace_manager=ns_manager)
 
@@ -22,14 +22,6 @@ def load_faculty(data_dir, load_vcards=True, load_facilities=True, load_departme
     #Skip header row
     row_num = 1
     while row_num < (limit or ws.nrows):
-        #Facility
-        building_name = ws.cell_value(row_num, "Building Name")
-        f = None
-        if building_name and load_facilities:
-            room_number = num_to_str(ws.cell_value(row_num, "Room Number"))
-            f = Facility(building_name, room_number)
-            g += f.to_graph()
-
         #Department
         #The department contained in faculty.csv shouldn't be used to create
         #association with faculty because it doesn't indicate anything about position.
@@ -66,7 +58,6 @@ def load_faculty(data_dir, load_vcards=True, load_facilities=True, load_departme
                 p.zip = num_to_str(ws.cell_value(row_num, "ZIP"))
                 p.fixed_line = ws.cell_value(row_num, "Fixed Line")
                 p.fax = ws.cell_value(row_num, "FAX")
-                p.facility = f
                 p.home_department = d
                 p.scholarly_interest = ws.cell_value(row_num, "Area of Scholary Interest")
                 g += p.to_graph()
@@ -490,7 +481,6 @@ if __name__ == '__main__':
 
     faculty_parser = subparsers.add_parser("faculty", parents=[parent_parser])
     faculty_parser.add_argument("--skip-vcards", action="store_false", dest="load_vcards")
-    faculty_parser.add_argument("--skip-facilities", action="store_false", dest="load_facilities")
     faculty_parser.add_argument("--skip-departments", action="store_false", dest="load_departments")
     faculty_parser.add_argument("--skip-persons", action="store_false", dest="load_persons")
     faculty_parser.set_defaults(func=load_faculty)

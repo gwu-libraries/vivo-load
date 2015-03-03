@@ -23,7 +23,6 @@ PREFIX_PRESENTER = "presr"
 PREFIX_PRESENTATION = "pres"
 PREFIX_RESEARCH_AREA = "ra"
 PREFIX_REVIEWERSHIP = "rev"
-PREFIX_SITE = "site"
 PREFIX_TEACHER = "tch"
 
 
@@ -40,7 +39,6 @@ class Person():
         self.fixed_line = None
         self.fax = None
         self.personal_statement = None
-        self.facility = None
         self.address = None
         self.city = None
         self.state = None
@@ -126,40 +124,9 @@ class Person():
             g.add((research_area_uri, RDFS.label, Literal(self.scholarly_interest)))
             g.add((self.uri, VIVO.hasResearchArea, research_area_uri))
 
-        ##Facility
-        if self.facility:
-            #Location of
-            g.add((self.facility.uri, OBO.RO_0001015, self.uri))
-
         ##Home Department
         if self.home_department:
             g.add((self.uri, LOCAL.homeDept, self.home_department.uri))
-
-        return g
-
-
-class Facility():
-
-    def __init__(self, building_name, room_number=None):
-        self.building_name = building_name
-        self.room_number = room_number
-        self.name = self.building_name
-        if self.room_number:
-            self.name = "%s %s" % (self.building_name, self.room_number)
-        self.uri = D[to_hash_identifier(PREFIX_SITE, (self.building_name, self.room_number))]
-
-    def to_graph(self):
-        #Create an RDFLib Graph
-        g = Graph()
-
-        building_uri = D[to_hash_identifier(PREFIX_SITE, (self.building_name,))]
-        g.add((building_uri, RDF.type, VIVO.Building))
-        g.add((building_uri, RDFS.label, Literal(self.building_name)))
-        if self.room_number:
-            g.add((self.uri, RDF.type, VIVO.Room))
-            #Part of
-            g.add((self.uri, OBO.BFO_0000050, building_uri))
-            g.add((self.uri, RDFS.label, Literal(self.name)))
 
         return g
 
