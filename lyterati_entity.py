@@ -1,4 +1,3 @@
-#from namespace import *
 from utility import *
 from rdflib import Graph
 import re
@@ -43,12 +42,12 @@ class Person():
         ##vcard
         if self.load_vcards:
             #Main vcard
-            vcard_uri = D["%s-vcard" % self.gw_id]
+            vcard_uri = self.uri + "-vcard"
             g.add((vcard_uri, RDF.type, VCARD.Individual))
             #Contact info for
             g.add((vcard_uri, OBO.ARG_2000029, self.uri))
             #Name vcard
-            vcard_name_uri = D["%s-vcard-name" % self.gw_id]
+            vcard_name_uri = self.uri + "-vcard-name"
             g.add((vcard_name_uri, RDF.type, VCARD.Name))
             g.add((vcard_uri, VCARD.hasName, vcard_name_uri))
             if self.first_name:
@@ -60,7 +59,7 @@ class Person():
 
             #Email vcard
             if self.username:
-                vcard_email_uri = D["%s-vcard-email" % self.gw_id]
+                vcard_email_uri = self.uri + "-vcard-email"
                 g.add((vcard_email_uri, RDF.type, VCARD.Email))
                 g.add((vcard_email_uri, RDF.type, VCARD.Work))
                 g.add((vcard_uri, VCARD.hasEmail, vcard_email_uri))
@@ -68,7 +67,7 @@ class Person():
 
             #Phone vcard
             if self.fixed_line:
-                vcard_phone_uri = D["%s-vcard-phone" % self.gw_id]
+                vcard_phone_uri = self.uri + "-vcard-phone"
                 g.add((vcard_phone_uri, RDF.type, VCARD.Telephone))
                 g.add((vcard_phone_uri, RDF.type, VCARD.Work))
                 g.add((vcard_phone_uri, RDF.type, VCARD.Voice))
@@ -76,7 +75,7 @@ class Person():
                 g.add((vcard_phone_uri, VCARD.telephone, Literal(num_to_str(self.fixed_line))))
 
             if self.fax:
-                vcard_fax_uri = D["%s-vcard-fax" % self.gw_id]
+                vcard_fax_uri = self.uri + "-vcard-fax"
                 g.add((vcard_fax_uri, RDF.type, VCARD.Telephone))
                 g.add((vcard_fax_uri, RDF.type, VCARD.Work))
                 g.add((vcard_fax_uri, RDF.type, VCARD.Fax))
@@ -85,7 +84,7 @@ class Person():
 
             #Address vcard
             if self.address and self.city and self.zip:
-                vcard_address_uri = D["%s-vcard-address" % self.gw_id]
+                vcard_address_uri = self.uri + "-vcard-address"
                 g.add((vcard_address_uri, RDF.type, VCARD.Address))
                 g.add((vcard_address_uri, RDF.type, VCARD.Work))
                 g.add((vcard_uri, VCARD.hasAddress, vcard_address_uri))

@@ -84,12 +84,12 @@ class Person():
 
 
 class NonFaculty():
-    def __init__(self, gw_id, person_type):
-        self.gw_id = gw_id
-        self.uri = D[to_hash_identifier(PREFIX_PERSON, (self.gw_id,))]
+    def __init__(self, person, person_type):
+        self.person = person
+        self.uri = self.person.uri
         self.person_type = person_type
 
-        self.home_org_cd = None
+        self.home_organization = None
         self.title = None
 
     def to_graph(self):
@@ -101,23 +101,22 @@ class NonFaculty():
 
         #Position
         if self.title:
-            appt_uri = D[to_hash_identifier(PREFIX_APPOINTMENT, (self.gw_id, self.title))]
+            appt_uri = D[to_hash_identifier(PREFIX_APPOINTMENT, (self.uri, self.title))]
             g.add((appt_uri, RDF.type, VIVO.NonFacultyAcademicPosition))
             g.add((appt_uri, RDFS.label, Literal(self.title)))
             #Related by
             g.add((self.uri, VIVO.relatedBy, appt_uri))
-            home_org_uri = D[to_hash_identifier(PREFIX_ORGANIZATION, (self.home_org_cd,))]
-            g.add((home_org_uri, VIVO.relatedBy, appt_uri))
+            g.add((self.home_organization.uri, VIVO.relatedBy, appt_uri))
 
         return g
 
 
 class Faculty():
-    def __init__(self, gw_id):
-        self.gw_id = gw_id
-        self.uri = D[to_hash_identifier(PREFIX_PERSON, (self.gw_id,))]
+    def __init__(self, person):
+        self.person = person
+        self.uri = self.person.uri
 
-        self.department_cd = None
+        self.department = None
         self.title = None
         self.start_term = None
 
@@ -129,13 +128,12 @@ class Faculty():
         g.add((self.uri, RDF.type, VIVO.FacultyMember))
 
         #Appointment
-        appt_uri = D[to_hash_identifier(PREFIX_APPOINTMENT, (self.gw_id,))]
+        appt_uri = D[to_hash_identifier(PREFIX_APPOINTMENT, (self.uri,))]
         g.add((appt_uri, RDF.type, VIVO.FacultyPosition))
         g.add((appt_uri, RDFS.label, Literal(self.title)))
         #Related by
         g.add((self.uri, VIVO.relatedBy, appt_uri))
-        department_uri = D[to_hash_identifier(PREFIX_ORGANIZATION, (self.department_cd,))]
-        g.add((department_uri, VIVO.relatedBy, appt_uri))
+        g.add((self.department.uri, VIVO.relatedBy, appt_uri))
 
         interval_uri = self.uri + "-interval"
         interval_start_uri = interval_uri + "-start"
@@ -148,13 +146,13 @@ class Faculty():
 
 class Organization():
 
-    def __init__(self, org_id, name, organization_type="Organization"):
+    def __init__(self, org_id, organization_type="Organization"):
         self.org_id = org_id
-        self.name = name
         self.organization_type = organization_type
         self.uri = D[to_hash_identifier(PREFIX_ORGANIZATION, (self.org_id,))]
 
         self.part_of = None
+        self.name = None
 
     def to_graph(self):
         #Create an RDFLib Graph
@@ -169,20 +167,19 @@ class Organization():
 
         #Part of
         if self.part_of:
-            part_of_uri = D[to_hash_identifier(PREFIX_ORGANIZATION, (self.part_of,))]
-            g.add((self.uri, OBO.BFO_0000050, part_of_uri))
+            g.add((self.uri, OBO.BFO_0000050, self.part_of.uri))
 
         return g
 
 
 class Course():
     #"G10002741","625-25","LAW","200003","Fed Criminal Appellate Clinc","4","9",
-    def __init__(self, gw_id, course_number, course_subject, start_term):
-        self.gw_id = gw_id
+    def __init__(self, person, course_number, course_subject, start_term):
+        self.person = person
         self.course_number = course_number
         self.course_subject = course_subject
         self.start_term = start_term
-        self.uri = D[to_hash_identifier(PREFIX_TEACHER, (self.gw_id, self.course_number,
+        self.uri = D[to_hash_identifier(PREFIX_TEACHER, (self.person.uri, self.course_number,
                                                          self.course_subject, self.start_term))]
 
         self.course_title = None
@@ -195,8 +192,7 @@ class Course():
         g.add((self.uri, RDF.type, VIVO.TeacherRole))
 
         #Inheres in person
-        person_uri = D[to_hash_identifier(PREFIX_PERSON, (self.gw_id,))]
-        g.add((self.uri, OBO.RO_0000052, person_uri))
+        g.add((self.uri, OBO.RO_0000052, self.person.uri))
 
         #Realized in course
         course_uri = D[to_hash_identifier(PREFIX_COURSE, (self.course_number, self.course_subject))]

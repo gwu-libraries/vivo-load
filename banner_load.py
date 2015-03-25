@@ -142,9 +142,9 @@ def load_emplappt(data_dir, limit=None):
         for row in reader:
             pos_cd = row[2]
             if pos_cd in pos_code_to_classes:
-                nf = NonFaculty(row[0], pos_code_to_classes[pos_cd])
+                nf = NonFaculty(Person(row[0]), pos_code_to_classes[pos_cd])
                 nf.title = row[1]
-                nf.home_org_cd = row[3]
+                nf.home_organization = Organization(row[3])
                 g += nf.to_graph()
 
                 p_count += 1
@@ -176,7 +176,8 @@ def load_orgn(data_dir, limit=None):
         for row in reader:
             org_cd = row[0]
             if org_cd in org_cds:
-                o = Organization(row[0], row[1])
+                o = Organization(row[0])
+                o.name = row[1]
                 g += o.to_graph()
 
                 o_count += 1
@@ -206,7 +207,8 @@ def load_college(data_dir, limit=None):
         for row in reader:
             college_cd = row[0]
             if college_cd in college_cds:
-                o = Organization(college_cd, row[1], organization_type="College")
+                o = Organization(college_cd, organization_type="College")
+                o.name = row[1]
                 g += o.to_graph()
                 o_count += 1
                 if limit and o_count >= limit:
@@ -233,8 +235,9 @@ def load_depart(data_dir, limit=None):
         for row in reader:
             dept_cd = row[0]
             if dept_cd not in ("0000",):
-                o = Organization(dept_cd, row[1], organization_type="Department")
-                o.part_of = department_to_college_dict.get(dept_cd)
+                o = Organization(dept_cd, organization_type="Department")
+                o.name = row[1]
+                o.part_of = Organization(department_to_college_dict.get(dept_cd))
                 g += o.to_graph()
                 o_count += 1
                 if limit and o_count >= limit:
@@ -251,8 +254,8 @@ def load_acadappt(data_dir, limit=None):
     with codecs.open(os.path.join(data_dir, "vivo_acadappt.txt"), 'r', encoding="utf-8") as csv_file:
         reader = csv.reader(csv_file)
         for row_num, row in enumerate(reader):
-            f = Faculty(row[0])
-            f.department_cd = row[2]
+            f = Faculty(Person(row[0]))
+            f.department = Organization(row[2])
             f.title = row[4]
             f.start_term = row[5]
             g += f.to_graph()
@@ -273,7 +276,7 @@ def load_courses(data_dir, limit=None):
     with codecs.open(os.path.join(data_dir, "vivo_courses.txt"), 'r', encoding="utf-8", errors="ignore") as csv_file:
         reader = csv.reader(csv_file)
         for row_num, row in enumerate(reader):
-            c = Course(row[0], row[1], row[2], row[3])
+            c = Course(Person(row[0]), row[1], row[2], row[3])
             c.course_title = row[4]
             g += c.to_graph()
 

@@ -67,7 +67,7 @@ if __name__ == '__main__':
     service_parser.add_argument("--service-groups", nargs="+", dest="service_group_codes")
     service_parser.set_defaults(func=lyterati_load.load_service)
 
-    orgn_parser = subparsers.add_parser("b_orgn", parents=[parent_parser])
+    orgn_parser = subparsers.add_parser("b_organization", parents=[parent_parser])
     orgn_parser.set_defaults(func=banner_load.load_orgn)
 
     college_parser = subparsers.add_parser("b_college", parents=[parent_parser])
@@ -78,9 +78,6 @@ if __name__ == '__main__':
 
     demographic_parser = subparsers.add_parser("b_demographic", parents=[parent_parser])
     demographic_parser.set_defaults(func=banner_load.load_demographic)
-
-    emplappt_parser = subparsers.add_parser("b_emplappt", parents=[parent_parser])
-    emplappt_parser.set_defaults(func=banner_load.load_emplappt)
 
     emplappt_parser = subparsers.add_parser("b_emplappt", parents=[parent_parser])
     emplappt_parser.set_defaults(func=banner_load.load_emplappt)
