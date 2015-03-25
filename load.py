@@ -29,6 +29,12 @@ if __name__ == '__main__':
     default_graph_dir = "/usr/local/vivo/graphs"
     parser.add_argument("--graph-dir", default=default_graph_dir, dest="graph_dir",
                         help="Directory where graphs are archived. Default is %s." % default_graph_dir)
+    default_username = "vivo_root@gwu.edu"
+    parser.add_argument("--username", default=default_username, dest="username",
+                        help="Username for VIVO root. Default is %s." % default_username)
+    default_password = "password"
+    parser.add_argument("--password", default=default_password, dest="password",
+                        help="Password for VIVO root. Default is %s." % default_password)
 
 
     parent_parser = argparse.ArgumentParser(add_help=False)
@@ -103,6 +109,8 @@ if __name__ == '__main__':
     del func_args["graph_dir"]
     del func_args["split_size"]
     del func_args["delete_split_size"]
+    del func_args["username"]
+    del func_args["password"]
 
     #Invoke the function
     g = args.func(**func_args)
@@ -127,6 +135,6 @@ if __name__ == '__main__':
 
     if args.perform_load:
         if len(g_add) > 0:
-            sparql_load(g_add, args.htdocs_dir, split_size=args.split_size)
+            sparql_load(g_add, args.htdocs_dir, args.username, args.password, split_size=args.split_size)
         if len(g_del) > 0:
-            sparql_delete(g_del, split_size=args.delete_split_size)
+            sparql_delete(g_del, args.username, args.password, split_size=args.delete_split_size)
