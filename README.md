@@ -5,13 +5,11 @@ A proof-of-concept tool for loading GWU data into [VIVO](http://vivoweb.org).
  
 Currently supports loading data from an export from 
 [Lyterati](http://www.entigence.com/#!lyterati/c6jw), the University's faculty information 
-system.
+system, and [Banner](https://banweb.gwu.edu), the University's business operations system.
 
 This code is intended to run in the [load docker container](https://github.com/gwu-libraries/vivo-docker).
 
 Data is loaded "as is".  **No data clean-up is performed.**
-
-See the wiki for notes on the data load.
 
 Running a load
 ===========
@@ -21,6 +19,10 @@ Notes:
 non-password protected versions of the files.)  This can be overridden with `--data-dir`.
 * A web server is required (to support a SPARQL Load).  The default location for the 
 html document root directory is `/usr/local/apache2/htdocs`.  This can be overridden with `--htdocs-dir`.
+* To support only loading diffs, previously loaded graphs are stored.  The default location is `/usr/local/vivo/graphs`.
+This can be overridden with `--graph-dir`.
+* The default username for the VIVO root account is `vivo_root@gwu.edu`.  This can be overridden with `--username`.
+* The default password for the VIVO root password is `password`.  This can be overridden with `--password`.
 
 To get help:
 
@@ -68,7 +70,8 @@ optional arguments:
 
 ```
 
-Export files are loaded one at a time.
+Export files are loaded one at a time.  For the current recommended order for loading exports, see 
+[Load order](https://github.com/gwu-libraries/vivo-load/wiki/Load-order).
 
 Generating the RDF is fast.  **Loading the RDF into VIVO is extremely slow.**  Be patient.
 
