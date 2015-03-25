@@ -112,9 +112,10 @@ class NonFaculty():
 
 
 class Faculty():
-    def __init__(self, person):
+    def __init__(self, person, load_appt=True):
         self.person = person
         self.uri = self.person.uri
+        self.load_appt = load_appt
 
         self.department = None
         self.title = None
@@ -128,18 +129,19 @@ class Faculty():
         g.add((self.uri, RDF.type, VIVO.FacultyMember))
 
         #Appointment
-        appt_uri = D[to_hash_identifier(PREFIX_APPOINTMENT, (self.uri,))]
-        g.add((appt_uri, RDF.type, VIVO.FacultyPosition))
-        g.add((appt_uri, RDFS.label, Literal(self.title)))
-        #Related by
-        g.add((self.uri, VIVO.relatedBy, appt_uri))
-        g.add((self.department.uri, VIVO.relatedBy, appt_uri))
+        if self.load_appt:
+            appt_uri = D[to_hash_identifier(PREFIX_APPOINTMENT, (self.uri,))]
+            g.add((appt_uri, RDF.type, VIVO.FacultyPosition))
+            g.add((appt_uri, RDFS.label, Literal(self.title)))
+            #Related by
+            g.add((self.uri, VIVO.relatedBy, appt_uri))
+            g.add((self.department.uri, VIVO.relatedBy, appt_uri))
 
-        interval_uri = self.uri + "-interval"
-        interval_start_uri = interval_uri + "-start"
-        add_date_interval(interval_uri, self.uri, g,
-                          interval_start_uri if add_season_date(interval_start_uri, self.start_term, g) else None,
-                          None)
+            interval_uri = self.uri + "-interval"
+            interval_start_uri = interval_uri + "-start"
+            add_date_interval(interval_uri, self.uri, g,
+                              interval_start_uri if add_season_date(interval_start_uri, self.start_term, g) else None,
+                              None)
 
         return g
 

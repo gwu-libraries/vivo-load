@@ -63,7 +63,7 @@ def get_non_faculty_gwids(data_dir):
 
 def get_faculty_gwids(data_dir):
     gwids = set()
-    with open(os.path.join(data_dir, "vivo_acadappt.txt"), 'rb') as csv_file:
+    with codecs.open(os.path.join(data_dir, "vivo_acadappt.txt"), 'r', encoding="utf-8") as csv_file:
         reader = csv.reader(csv_file)
         for row in reader:
             gwids.add(row[0])
@@ -187,6 +187,10 @@ def load_orgn(data_dir, limit=None):
 
 
 def load_college(data_dir, limit=None):
+    print """
+    Loading college. Limit=%s.
+    """ % limit
+
     college_cds = set()
     #Only load colleges that have entries in acadappt
     with codecs.open(os.path.join(data_dir, "vivo_acadappt.txt"), 'r', encoding="utf-8") as csv_file:
@@ -218,6 +222,10 @@ def load_college(data_dir, limit=None):
 
 
 def load_depart(data_dir, limit=None):
+    print """
+    Loading department. Limit=%s.
+    """ % limit
+
     #Create an RDFLib Graph
     g = Graph(namespace_manager=ns_manager)
 
@@ -246,7 +254,11 @@ def load_depart(data_dir, limit=None):
     return g
 
 
-def load_acadappt(data_dir, limit=None):
+def load_acadappt(data_dir, limit=None, load_appt=True):
+    print """
+    Loading acadappt. Limit=%s.
+    """ % limit
+
     #"G10002741","625-25","LAW","200003","Fed Criminal Appellate Clinc","4","9",
     #Create an RDFLib Graph
     g = Graph(namespace_manager=ns_manager)
@@ -254,7 +266,7 @@ def load_acadappt(data_dir, limit=None):
     with codecs.open(os.path.join(data_dir, "vivo_acadappt.txt"), 'r', encoding="utf-8") as csv_file:
         reader = csv.reader(csv_file)
         for row_num, row in enumerate(reader):
-            f = Faculty(Person(row[0]))
+            f = Faculty(Person(row[0]), load_appt=load_appt)
             f.department = Organization(row[2])
             f.title = row[4]
             f.start_term = row[5]
@@ -267,6 +279,9 @@ def load_acadappt(data_dir, limit=None):
 
 
 def load_courses(data_dir, limit=None):
+    print """
+    Loading courses. Limit=%s.
+    """ % limit
     #"G10002741","625-25","LAW","200003","Fed Criminal Appellate Clinc","4","9",
 
     #Create an RDFLib Graph

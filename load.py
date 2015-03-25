@@ -89,6 +89,9 @@ if __name__ == '__main__':
     emplappt_parser.set_defaults(func=banner_load.load_emplappt)
 
     acadappt_parser = subparsers.add_parser("b_acadappt", parents=[parent_parser])
+    acadappt_parser.add_argument("--skip-appt", action="store_false", dest="load_appt",
+                                 help="Skip loading the academic appointment for the faculty.")
+
     acadappt_parser.set_defaults(func=banner_load.load_acadappt)
 
     banner_courses_parser = subparsers.add_parser("b_courses", parents=[parent_parser])
