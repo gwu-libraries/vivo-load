@@ -5,95 +5,21 @@ from prefixes import *
 
 
 class Person():
-    def __init__(self, gw_id, person_type="FacultyMember", load_vcards=True):
+    def __init__(self, gw_id):
         self.gw_id = gw_id
         self.uri = D[to_hash_identifier(PREFIX_PERSON, (self.gw_id,))]
-        self.person_type = person_type
-        self.load_vcards = load_vcards
 
-        self.first_name = None
-        self.middle_name = None
-        self.last_name = None
-        self.fixed_line = None
-        self.fax = None
         self.personal_statement = None
-        self.address = None
-        self.city = None
-        self.state = None
-        self.zip = None
-        self.country = None
         self.home_department = None
-        self.username = None
         self.scholarly_interest = None
 
     def to_graph(self):
         #Create an RDFLib Graph
         g = Graph()
 
-        full_name = join_if_not_empty((self.first_name, self.middle_name, self.last_name))
-
-        ##FacultyMember
-        g.add((self.uri, RDF.type, getattr(VIVO, self.person_type)))
-        g.add((self.uri, RDFS.label, Literal(full_name)))
         #Overview
         if self.personal_statement:
             g.add((self.uri, VIVO.overview, Literal(self.personal_statement)))
-
-        ##vcard
-        if self.load_vcards:
-            #Main vcard
-            vcard_uri = self.uri + "-vcard"
-            g.add((vcard_uri, RDF.type, VCARD.Individual))
-            #Contact info for
-            g.add((vcard_uri, OBO.ARG_2000029, self.uri))
-            #Name vcard
-            vcard_name_uri = self.uri + "-vcard-name"
-            g.add((vcard_name_uri, RDF.type, VCARD.Name))
-            g.add((vcard_uri, VCARD.hasName, vcard_name_uri))
-            if self.first_name:
-                g.add((vcard_name_uri, VCARD.givenName, Literal(self.first_name)))
-            if self.middle_name:
-                g.add((vcard_name_uri, VCARD.middleName, Literal(self.middle_name)))
-            if self.last_name:
-                g.add((vcard_name_uri, VCARD.familyName, Literal(self.last_name)))
-
-            #Email vcard
-            if self.username:
-                vcard_email_uri = self.uri + "-vcard-email"
-                g.add((vcard_email_uri, RDF.type, VCARD.Email))
-                g.add((vcard_email_uri, RDF.type, VCARD.Work))
-                g.add((vcard_uri, VCARD.hasEmail, vcard_email_uri))
-                g.add((vcard_email_uri, VCARD.email, Literal("%s@gwu.edu" % self.username)))
-
-            #Phone vcard
-            if self.fixed_line:
-                vcard_phone_uri = self.uri + "-vcard-phone"
-                g.add((vcard_phone_uri, RDF.type, VCARD.Telephone))
-                g.add((vcard_phone_uri, RDF.type, VCARD.Work))
-                g.add((vcard_phone_uri, RDF.type, VCARD.Voice))
-                g.add((vcard_uri, VCARD.hasTelephone, vcard_phone_uri))
-                g.add((vcard_phone_uri, VCARD.telephone, Literal(num_to_str(self.fixed_line))))
-
-            if self.fax:
-                vcard_fax_uri = self.uri + "-vcard-fax"
-                g.add((vcard_fax_uri, RDF.type, VCARD.Telephone))
-                g.add((vcard_fax_uri, RDF.type, VCARD.Work))
-                g.add((vcard_fax_uri, RDF.type, VCARD.Fax))
-                g.add((vcard_uri, VCARD.hasTelephone, vcard_fax_uri))
-                g.add((vcard_fax_uri, VCARD.telephone, Literal(num_to_str(self.fax))))
-
-            #Address vcard
-            if self.address and self.city and self.zip:
-                vcard_address_uri = self.uri + "-vcard-address"
-                g.add((vcard_address_uri, RDF.type, VCARD.Address))
-                g.add((vcard_address_uri, RDF.type, VCARD.Work))
-                g.add((vcard_uri, VCARD.hasAddress, vcard_address_uri))
-                g.add((vcard_address_uri, VCARD.streetAddress, Literal(self.address)))
-                g.add((vcard_address_uri, VCARD.locality, Literal(self.city)))
-                if self.state:
-                    g.add((vcard_address_uri, VCARD.region, Literal(self.state)))
-                g.add((vcard_address_uri, VCARD.postalCode, Literal(self.zip)))
-                g.add((vcard_address_uri, VCARD.country, Literal(self.country or "USA")))
 
         ##Scholarly interest
         if self.scholarly_interest:

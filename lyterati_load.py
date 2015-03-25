@@ -45,21 +45,8 @@ def load_faculty(data_dir, load_vcards=True, load_departments=True, load_persons
         if load_persons:
             gw_id = strip_gw_prefix(ws.cell_value(row_num, "Faculty ID"))
             if gw_id in faculty_gw_ids:
-                last_name = ws.cell_value(row_num, "Last Name")
-                first_name = ws.cell_value(row_num, "First Name")
-                p = Person(gw_id, load_vcards=load_vcards)
-                p.first_name = first_name
-                p.middle_name = ws.cell_value(row_num, "Middle Name")
-                p.last_name = last_name
-                p.username = ws.cell_value(row_num, "User Name")
+                p = Person(gw_id)
                 p.personal_statement = ws.cell_value(row_num, "Personal Statement")
-                p.address = ws.cell_value(row_num, "Address")
-                p.city = ws.cell_value(row_num, "City")
-                p.state = ws.cell_value(row_num, "State")
-                p.country = ws.cell_value(row_num, "Country")
-                p.zip = num_to_str(ws.cell_value(row_num, "ZIP"))
-                p.fixed_line = ws.cell_value(row_num, "Fixed Line")
-                p.fax = ws.cell_value(row_num, "FAX")
                 p.home_department = d
                 p.scholarly_interest = ws.cell_value(row_num, "Area of Scholary Interest")
                 g += p.to_graph()
