@@ -1,7 +1,5 @@
-#from namespace import *
 from utility import *
 from rdflib import Graph
-import re
 from prefixes import *
 
 

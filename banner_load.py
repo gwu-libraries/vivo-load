@@ -1,9 +1,6 @@
 import os
 from banner_entity import *
 import csv
-import argparse
-from sparql import load_previous_graph, sparql_load, sparql_delete, serialize
-from rdflib.compare import graph_diff
 import codecs
 
 # #Non-faculty academic
@@ -15,7 +12,6 @@ import codecs
 # 283R1 --> ['Lead Research Scientist', 'Deputy Director CHCQ', ' Lead Research Scientist', 'Uv Lead Research Scientist FT', 'Sr Research Network Engineer', 'Mc Lead Research Scientist Ft']
 # 28102 --> ['Mc Sr Rsch Scientist FT', 'Sr. Research Scientist']
 # 19S01 --> ['Research Project Director', 'Programs&Development Director', 'Director of Research']
-# 28502 --> ['Uv Rsch Assoc PT', 'Research Associate PT', 'Uv Rsch Assoc', 'Research Associate', 'Uv Rsh Assoc Pt', 'Mc Rsch Assoc PT', 'Postdoctoral Scientist']
 # 28501 --> ['Uv Rsh Assoc Ft', 'Uv Rsch Assoc FT', 'Policy Associate', 'Research Asso. Study Coodntr', 'Research Associate', 'Bioinformatics Analyst', 'Mc Rsch Assoc FT', 'Rsch Assoc', 'Mc Rsh Assoc Ft', 'Uv Rsch Assoc FT/SAS Pgrmr']
 # 27401 --> ['Uv Rsch Dir Non-Fa Ft']
 #
@@ -41,7 +37,6 @@ pos_code_to_classes = {
     "283R1": "NonFacultyAcademic",
     "28102": "NonFacultyAcademic",
     "19S01": "NonFacultyAcademic",
-    "28502": "NonFacultyAcademic",
     "28501": "NonFacultyAcademic",
     "27401": "NonFacultyAcademic",
     "289A1": "Postdoc",
@@ -55,6 +50,7 @@ pos_code_to_classes = {
     "30501": "Librarian",
 }
 
+
 def get_non_faculty_gwids(data_dir):
     gwids = []
     with codecs.open(os.path.join(data_dir, "vivo_emplappt.txt"), 'r', encoding="utf-8") as csv_file:
@@ -63,6 +59,7 @@ def get_non_faculty_gwids(data_dir):
             if row[2] in pos_code_to_classes:
                 gwids.append(row[0])
     return gwids
+
 
 def get_faculty_gwids(data_dir):
     gwids = set()
@@ -284,99 +281,3 @@ def load_courses(data_dir, limit=None):
                 break
 
     return g
-
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--skip-load", action="store_false", dest="perform_load",
-                        help="Generate RDF, but do not load into VIVO.")
-    parser.add_argument("--skip-diff", action="store_false", dest="perform_diff",
-                        help="Load everything, not just the difference with last load.")
-    default_split_size = 10000
-    parser.add_argument("--split-size", type=int, default=default_split_size,
-                        help="Maximum number of triples to include in a single load. Default is %s" % default_split_size)
-    default_delete_split_size = 2500
-    parser.add_argument("--delete-split-size", type=int, default=default_delete_split_size,
-                        help="Maximum number of triples to include in a single delete. Default is %s" % default_delete_split_size)
-    default_data_dir = "./data"
-    parser.add_argument("--data-dir", default=default_data_dir, dest="data_dir",
-                        help="Directory containing the xlsx. Default is %s" % default_data_dir)
-    default_htdocs_dir = "/usr/local/apache2/htdocs"
-    parser.add_argument("--htdocs-dir", default=default_htdocs_dir, dest="htdocs_dir",
-                        help="Directory from which html documents are served. Default is %s." % default_htdocs_dir)
-    default_graph_dir = "/usr/local/vivo/graphs"
-    parser.add_argument("--graph-dir", default=default_graph_dir, dest="graph_dir",
-                        help="Directory where graphs are archived. Default is %s." % default_graph_dir)
-
-    parent_parser = argparse.ArgumentParser(add_help=False)
-    parent_parser.add_argument("--limit", type=int, help="Number of rows from csv to load.")
-
-    subparsers = parser.add_subparsers(dest="graph")
-
-    orgn_parser = subparsers.add_parser("orgn", parents=[parent_parser])
-    orgn_parser.set_defaults(func=load_orgn)
-
-    college_parser = subparsers.add_parser("college", parents=[parent_parser])
-    college_parser.set_defaults(func=load_college)
-
-    depart_parser = subparsers.add_parser("department", parents=[parent_parser])
-    depart_parser.set_defaults(func=load_depart)
-
-    demographic_parser = subparsers.add_parser("demographic", parents=[parent_parser])
-    demographic_parser.set_defaults(func=load_demographic)
-
-    emplappt_parser = subparsers.add_parser("emplappt", parents=[parent_parser])
-    emplappt_parser.set_defaults(func=load_emplappt)
-
-    emplappt_parser = subparsers.add_parser("emplappt", parents=[parent_parser])
-    emplappt_parser.set_defaults(func=load_emplappt)
-
-    acadappt_parser = subparsers.add_parser("acadappt", parents=[parent_parser])
-    acadappt_parser.set_defaults(func=load_acadappt)
-
-    courses_parser = subparsers.add_parser("courses", parents=[parent_parser])
-    courses_parser.set_defaults(func=load_courses)
-
-    #Parse
-    args = parser.parse_args()
-    func_args = vars(args).copy()
-
-    #Remove extraneous args
-    del func_args["graph"]
-    del func_args["func"]
-    del func_args["perform_load"]
-    del func_args["perform_diff"]
-    del func_args["htdocs_dir"]
-    del func_args["graph_dir"]
-    del func_args["split_size"]
-    del func_args["delete_split_size"]
-
-    #Invoke the function
-    g = args.func(**func_args)
-
-    if args.perform_diff:
-        #Load the previous graph
-        prev_g = load_previous_graph(args.graph_dir, args.graph)
-    else:
-        prev_g = Graph(namespace_manager=ns_manager)
-
-    #Save to graphs archive directory
-    if args.perform_load:
-        serialize(g, args.graph_dir, args.graph)
-    #Find the diff
-    (g_both, g_del, g_add) = graph_diff(prev_g, g)
-    g_add.namespace_manager = ns_manager
-    g_del.namespace_manager = ns_manager
-
-    #Print the diff
-    print "To add %s triples:\n%s" % (len(g_add), g_add.serialize(format="turtle"))
-    print "To delete %s triples:\n%s" % (len(g_del), g_del.serialize(format="turtle"))
-
-    if args.perform_load:
-        if len(g_add) > 0:
-            sparql_load(g_add, args.htdocs_dir, split_size=args.split_size)
-        if len(g_del) > 0:
-            sparql_delete(g_del, split_size=args.delete_split_size)
-
-
-

@@ -1,9 +1,6 @@
 import os
 from lyterati_entity import *
-import argparse
-from rdflib.compare import graph_diff
-from sparql import load_previous_graph, sparql_load, sparql_delete, serialize
-from load_banner import get_faculty_gwids
+from banner_load import get_faculty_gwids
 
 GWU = "The George Washington University"
 
@@ -155,7 +152,8 @@ def load_admin_appointment(data_dir, limit=None):
     return g
 
 
-def load_research(data_dir, limit=None, contribution_type_limit=None, research_group_codes=None, contribution_type_codes=None):
+def load_research(data_dir, limit=None, contribution_type_limit=None,
+                  research_group_codes=None, contribution_type_codes=None):
     print """
     Loading research. Limit is %s. Contribution type limit is %s. Research group codes is %s.
     Contribution types codes is %s.
@@ -195,38 +193,35 @@ def load_research(data_dir, limit=None, contribution_type_limit=None, research_g
                         g += o.to_graph()
                         r.publisher = o
                 #Report
-                elif (research_group_code == "LIT_PUBLICATION" and
-                        contribution_type_code in (
-                                  #Report
-                                  "GW_RESEARCH_TYPE_CD5",
-                                  #Policy brief
-                                  "GW_RESEARCH_TYPE_CD68", ) and title):
+                elif (research_group_code == "LIT_PUBLICATION" and contribution_type_code in (
+                      #Report
+                      "GW_RESEARCH_TYPE_CD5",
+                      #Policy brief
+                      "GW_RESEARCH_TYPE_CD68", ) and title):
                     r = Report(title, p)
                     if name:
                         o = Organization(name)
                         g += o.to_graph()
                         r.distributor = o
                 #Article
-                elif (research_group_code == "LIT_PUBLICATION" and
-                        contribution_type_code in (
-                                  #Essay
-                                  "GW_RESEARCH_TYPE_CD2",
-                                  #Non-refereed article
-                                  "GW_RESEARCH_TYPE_CD4" ) and title):
+                elif (research_group_code == "LIT_PUBLICATION" and contribution_type_code in (
+                      #Essay
+                      "GW_RESEARCH_TYPE_CD2",
+                      #Non-refereed article
+                      "GW_RESEARCH_TYPE_CD4") and title):
                     r = Article(title, p)
                     if name:
                         r.publication_venue_name = name
                 #Academic article
-                elif (research_group_code == "LIT_PUBLICATION" and
-                        contribution_type_code in (
-                                  #Refereed article
-                                  "GW_RESEARCH_TYPE_CD1",
-                                  #Other
-                                  "GW_RESEARCH_TYPE_CD8",
-                                  #Invited article
-                                  "GW_RESEARCH_TYPE_CD67",
-                                  #Law review and journal
-                                  "GW_RESEARCH_TYPE_CD74" ) and title):
+                elif (research_group_code == "LIT_PUBLICATION" and contribution_type_code in (
+                      #Refereed article
+                      "GW_RESEARCH_TYPE_CD1",
+                      #Other
+                      "GW_RESEARCH_TYPE_CD8",
+                      #Invited article
+                      "GW_RESEARCH_TYPE_CD67",
+                      #Law review and journal
+                      "GW_RESEARCH_TYPE_CD74") and title):
                     r = AcademicArticle(title, p)
                     if name:
                         r.publication_venue_name = name
@@ -308,10 +303,9 @@ def load_research(data_dir, limit=None, contribution_type_limit=None, research_g
                                 g += o.to_graph()
                                 r.awarded_by = o
                 #Conference abstract
-                elif (research_group_code == "LIT_CONFERENCE" and
-                      contribution_type_code in (
-                                #Abstract
-                                "GW_RESEARCH_TYPE_CD90",) and title):
+                elif (research_group_code == "LIT_CONFERENCE" and contribution_type_code in (
+                        #Abstract
+                        "GW_RESEARCH_TYPE_CD90",) and title):
                         r = ConferenceAbstract(title, p, name)
 
                 if r:
@@ -478,104 +472,3 @@ def load_service(data_dir, limit=None, service_type_limit=None, service_group_co
         row_num += 1
 
     return g
-
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--skip-load", action="store_false", dest="perform_load",
-                        help="Generate RDF, but do not load into VIVO.")
-    parser.add_argument("--skip-diff", action="store_false", dest="perform_diff",
-                        help="Load everything, not just the difference with last load.")
-    default_split_size = 10000
-    parser.add_argument("--split-size", type=int, default=default_split_size,
-                        help="Maximum number of triples to include in a single load. Default is %s" % default_split_size)
-    default_delete_split_size = 2500
-    parser.add_argument("--delete-split-size", type=int, default=default_delete_split_size,
-                        help="Maximum number of triples to include in a single delete. Default is %s" % default_delete_split_size)
-    default_data_dir = "./data"
-    parser.add_argument("--data-dir", default=default_data_dir, dest="data_dir",
-                        help="Directory containing the xlsx. Default is %s" % default_data_dir)
-    default_htdocs_dir = "/usr/local/apache2/htdocs"
-    parser.add_argument("--htdocs-dir", default=default_htdocs_dir, dest="htdocs_dir",
-                        help="Directory from which html documents are served. Default is %s." % default_htdocs_dir)
-    default_graph_dir = "/usr/local/vivo/graphs"
-    parser.add_argument("--graph-dir", default=default_graph_dir, dest="graph_dir",
-                        help="Directory where graphs are archived. Default is %s." % default_graph_dir)
-
-
-    parent_parser = argparse.ArgumentParser(add_help=False)
-    parent_parser.add_argument("--limit", type=int, help="Number of rows from csv to load.")
-
-    subparsers = parser.add_subparsers(dest="graph")
-
-    faculty_parser = subparsers.add_parser("faculty", parents=[parent_parser])
-    faculty_parser.add_argument("--skip-vcards", action="store_false", dest="load_vcards")
-    faculty_parser.add_argument("--skip-departments", action="store_false", dest="load_departments")
-    faculty_parser.add_argument("--skip-persons", action="store_false", dest="load_persons")
-    faculty_parser.set_defaults(func=load_faculty)
-
-    academic_appointment_parser = subparsers.add_parser("academic_appointment", parents=[parent_parser])
-    academic_appointment_parser.set_defaults(func=load_academic_appointment)
-
-    admin_appointment_parser = subparsers.add_parser("admin_appointment", parents=[parent_parser])
-    admin_appointment_parser.set_defaults(func=load_admin_appointment)
-
-    research_parser = subparsers.add_parser("research", parents=[parent_parser])
-    research_parser.add_argument("--contribution-type-limit", type=int, help="Number of research entities to load.")
-    research_parser.add_argument("--research-groups", nargs="+", dest="research_group_codes")
-    research_parser.add_argument("--contribution-types", nargs="+", dest="contribution_type_codes")
-    research_parser.set_defaults(func=load_research)
-
-    education_parser = subparsers.add_parser("education", parents=[parent_parser])
-    education_parser.add_argument("--degree-type-limit", type=int, help="Number of education entities to load.")
-    education_parser.add_argument("--degree-types", nargs="+", dest="degree_types")
-    education_parser.set_defaults(func=load_education)
-
-    courses_parser = subparsers.add_parser("courses", parents=[parent_parser])
-    courses_parser.set_defaults(func=load_courses)
-
-    service_parser = subparsers.add_parser("service", parents=[parent_parser])
-    service_parser.add_argument("--service-type-limit", type=int, help="Number of service entities to load.")
-    service_parser.add_argument("--service-groups", nargs="+", dest="service_group_codes")
-    service_parser.set_defaults(func=load_service)
-
-    #Parse
-    args = parser.parse_args()
-    func_args = vars(args).copy()
-
-    #Remove extraneous args
-    del func_args["graph"]
-    del func_args["func"]
-    del func_args["perform_load"]
-    del func_args["perform_diff"]
-    del func_args["htdocs_dir"]
-    del func_args["graph_dir"]
-    del func_args["split_size"]
-    del func_args["delete_split_size"]
-
-    #Invoke the function
-    g = args.func(**func_args)
-
-    if args.perform_diff:
-        #Load the previous graph
-        prev_g = load_previous_graph(args.graph_dir, args.graph)
-    else:
-        prev_g = Graph(namespace_manager=ns_manager)
-
-    #Save to graphs archive directory
-    if args.perform_load:
-        serialize(g, args.graph_dir, args.graph)
-    #Find the diff
-    (g_both, g_del, g_add) = graph_diff(prev_g, g)
-    g_add.namespace_manager = ns_manager
-    g_del.namespace_manager = ns_manager
-
-    #Print the diff
-    print "To add %s triples:\n%s" % (len(g_add), g_add.serialize(format="turtle"))
-    print "To delete %s triples:\n%s" % (len(g_del), g_del.serialize(format="turtle"))
-
-    if args.perform_load:
-        if len(g_add) > 0:
-            sparql_load(g_add, args.htdocs_dir, split_size=args.split_size)
-        if len(g_del) > 0:
-            sparql_delete(g_del, split_size=args.delete_split_size)
