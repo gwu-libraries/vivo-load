@@ -58,7 +58,7 @@ def get_non_faculty_gwids(data_dir):
         for row in reader:
             if row[2] in pos_code_to_classes:
                 gwids.append(row[0])
-    return gwids
+    return demographic_intersection(gwids, data_dir)
 
 
 def get_faculty_gwids(data_dir):
@@ -67,7 +67,16 @@ def get_faculty_gwids(data_dir):
         reader = csv.reader(csv_file)
         for row in reader:
             gwids.add(row[0])
-    return gwids
+    return demographic_intersection(gwids, data_dir)
+
+
+def demographic_intersection(gwids, data_dir):
+    demo_gwids = set()
+    with codecs.open(os.path.join(data_dir, "vivo_demographic.txt"), 'r', encoding="utf-8") as csv_file:
+        reader = csv.reader(csv_file)
+        for row in reader:
+            demo_gwids.add(row[0])
+    return demo_gwids.intersection(gwids)
 
 
 def print_position_code_to_name(data_dir):
