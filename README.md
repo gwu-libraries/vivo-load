@@ -21,6 +21,7 @@ non-password protected versions of the files.)  This can be overridden with `--d
 html document root directory is `/usr/local/apache2/htdocs`.  This can be overridden with `--htdocs-dir`.
 * To support only loading diffs, previously loaded graphs are stored.  The default location is `/usr/local/vivo/graphs`.
 This can be overridden with `--graph-dir`.
+* The default endpoint for SPARQL Update is `http://tomcat:8080/vivo/api/sparqlUpdate`.  This can be overridden with `--endpoint`.
 * The default username for the VIVO root account is `vivo_root@gwu.edu`.  This can be overridden with `--username`.
 * The default password for the VIVO root password is `password`.  This can be overridden with `--password`.
 

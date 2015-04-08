@@ -44,29 +44,29 @@ def load_previous_graph(graph_dir, prefix):
     return g
 
 
-def sparql_load(g, htdocs_dir, username, password, split_size=None):
+def sparql_load(g, htdocs_dir, endpoint, username, password, split_size=None):
     filenames = serialize(g, htdocs_dir, "load", split_size=split_size)
     ip = socket.gethostbyname(socket.gethostname())
     for filename in filenames:
         print "Loading %s" % filename
         sparql_update("""
             LOAD <http://%s/%s> into graph <http://vitro.mannlib.cornell.edu/default/vitro-kb-2>
-        """ % (ip, filename), username, password)
+        """ % (ip, filename), endpoint, username, password)
 
 
-def sparql_delete(g, username, password, split_size=None):
+def sparql_delete(g, endpoint, username, password, split_size=None):
     if split_size:
         split_num = int(math.ceil(len(g) / split_size))
         print "Splitting %s triples into %s parts for deleting." % (len(g), split_num)
         for graph_part in graph_split_generator(g, split_size):
             print "Deleting %s triples." % len(graph_part)
-            _sparql_delete(graph_part, username, password)
+            _sparql_delete(graph_part, endpoint, username, password)
     else:
         print "Deleting %s triples." % len(g)
-        _sparql_delete(g, username, password)
+        _sparql_delete(g, endpoint, username, password)
 
 
-def _sparql_delete(g, username, password):
+def _sparql_delete(g, endpoint, username, password):
     #Need to construct query
     ns_lines = []
     triple_lines = []
@@ -80,11 +80,11 @@ def _sparql_delete(g, username, password):
     query += "\nDELETE DATA { GRAPH <http://vitro.mannlib.cornell.edu/default/vitro-kb-2> {\n"
     query += "\n".join(triple_lines)
     query += "\n}}"
-    sparql_update(query, username, password)
+    sparql_update(query, endpoint, username, password)
 
 
-def sparql_update(query, username, password):
-    sparql = SPARQLWrapper("http://tomcat:8080/vivo/api/sparqlUpdate")
+def sparql_update(query, endpoint, username, password):
+    sparql = SPARQLWrapper(endpoint)
     sparql.addParameter("email", username)
     sparql.addParameter("password", password)
     sparql.setQuery(query)

@@ -35,6 +35,9 @@ if __name__ == '__main__':
     default_password = "password"
     parser.add_argument("--password", default=default_password, dest="password",
                         help="Password for VIVO root. Default is %s." % default_password)
+    default_endpoint = "http://tomcat:8080/vivo/api/sparqlUpdate"
+    parser.add_argument("--endpoint", default=default_endpoint, dest="endpoint",
+                        help="Endpoint for SPARQL Update. Default is %s." % default_endpoint)
 
 
     parent_parser = argparse.ArgumentParser(add_help=False)
@@ -114,6 +117,7 @@ if __name__ == '__main__':
     del func_args["delete_split_size"]
     del func_args["username"]
     del func_args["password"]
+    del func_args["endpoint"]
 
     #Invoke the function
     g = args.func(**func_args)
@@ -138,6 +142,6 @@ if __name__ == '__main__':
 
     if args.perform_load:
         if len(g_add) > 0:
-            sparql_load(g_add, args.htdocs_dir, args.username, args.password, split_size=args.split_size)
+            sparql_load(g_add, args.htdocs_dir, args.endpoint, args.username, args.password, split_size=args.split_size)
         if len(g_del) > 0:
-            sparql_delete(g_del, args.username, args.password, split_size=args.delete_split_size)
+            sparql_delete(g_del, args.username, args.endpoint, args.password, split_size=args.delete_split_size)
