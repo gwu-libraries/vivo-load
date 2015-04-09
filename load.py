@@ -128,9 +128,6 @@ if __name__ == '__main__':
     else:
         prev_g = Graph(namespace_manager=ns_manager)
 
-    #Save to graphs archive directory
-    if args.perform_load and args.perform_serialize:
-        serialize(g, args.graph_dir, args.graph)
     #Find the diff
     (g_both, g_del, g_add) = graph_diff(prev_g, g)
     g_add.namespace_manager = ns_manager
@@ -145,3 +142,7 @@ if __name__ == '__main__':
             sparql_load(g_add, args.htdocs_dir, args.endpoint, args.username, args.password, split_size=args.split_size)
         if len(g_del) > 0:
             sparql_delete(g_del, args.username, args.endpoint, args.password, split_size=args.delete_split_size)
+
+    #Save to graphs archive directory
+    if args.perform_load and args.perform_serialize:
+        serialize(g, args.graph_dir, args.graph)
