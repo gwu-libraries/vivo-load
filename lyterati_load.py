@@ -5,13 +5,13 @@ from banner_load import get_faculty_gwids
 GWU = "The George Washington University"
 
 
-def load_faculty(data_dir, load_vcards=True, load_departments=True, load_persons=True, limit=None):
+def load_faculty(data_dir, load_vcards=True, load_departments=True, load_persons=True, limit=None, fac_limit=None):
     print """
     Loading faculty. Load vcards=%s. Load departments=%s. Load persons=%s. Limit=%s.
     """ % (load_vcards, load_departments, load_persons, limit)
 
     #Get faculty ids from banner
-    faculty_gw_ids = get_faculty_gwids(data_dir)
+    faculty_gw_ids = get_faculty_gwids(data_dir, fac_limit=fac_limit)
 
     #Create an RDFLib Graph
     g = Graph(namespace_manager=ns_manager)
@@ -56,11 +56,11 @@ def load_faculty(data_dir, load_vcards=True, load_departments=True, load_persons
     return g
 
 
-def load_academic_appointment(data_dir, limit=None):
+def load_academic_appointment(data_dir, limit=None, fac_limit=None):
     print "Loading academic appointments. Limit is %s." % limit
 
     #Get faculty ids from banner
-    faculty_gw_ids = get_faculty_gwids(data_dir)
+    faculty_gw_ids = get_faculty_gwids(data_dir, fac_limit=fac_limit)
 
     #Create an RDFLib Graph
     g = Graph(namespace_manager=ns_manager)
@@ -90,11 +90,11 @@ def load_academic_appointment(data_dir, limit=None):
     return g
 
 
-def load_admin_appointment(data_dir, limit=None):
+def load_admin_appointment(data_dir, limit=None, fac_limit=None):
     print "Loading admin appointments. Limit is %s." % limit
 
     #Get faculty ids from banner
-    faculty_gw_ids = get_faculty_gwids(data_dir)
+    faculty_gw_ids = get_faculty_gwids(data_dir, fac_limit=fac_limit)
 
     #Create an RDFLib Graph
     g = Graph(namespace_manager=ns_manager)
@@ -140,14 +140,14 @@ def load_admin_appointment(data_dir, limit=None):
 
 
 def load_research(data_dir, limit=None, contribution_type_limit=None,
-                  research_group_codes=None, contribution_type_codes=None):
+                  research_group_codes=None, contribution_type_codes=None, fac_limit=None):
     print """
     Loading research. Limit is %s. Contribution type limit is %s. Research group codes is %s.
     Contribution types codes is %s.
     """ % (limit, contribution_type_limit, research_group_codes, contribution_type_codes)
 
     #Get faculty ids from banner
-    faculty_gw_ids = get_faculty_gwids(data_dir)
+    faculty_gw_ids = get_faculty_gwids(data_dir, fac_limit=fac_limit)
 
     #Create an RDFLib Graph
     g = Graph(namespace_manager=ns_manager)
@@ -306,12 +306,12 @@ def load_research(data_dir, limit=None, contribution_type_limit=None,
     return g
 
 
-def load_education(data_dir, limit=None, degree_types=None, degree_type_limit=None):
+def load_education(data_dir, limit=None, degree_types=None, degree_type_limit=None, fac_limit=None):
     print "Loading education. Limit is %s. Degree types is %s. Degree type limit is %s" % (
         limit, degree_types, degree_type_limit)
 
     #Get faculty ids from banner
-    faculty_gw_ids = get_faculty_gwids(data_dir)
+    faculty_gw_ids = get_faculty_gwids(data_dir, fac_limit=fac_limit)
 
     #Create an RDFLib Graph
     g = Graph(namespace_manager=ns_manager)
@@ -367,11 +367,11 @@ def load_education(data_dir, limit=None, degree_types=None, degree_type_limit=No
     return g
 
 
-def load_courses(data_dir, limit=None):
+def load_courses(data_dir, limit=None, fac_limit=None):
     print "Loading courses taught. Limit is %s." % limit
 
     #Get faculty ids from banner
-    faculty_gw_ids = get_faculty_gwids(data_dir)
+    faculty_gw_ids = get_faculty_gwids(data_dir, fac_limit=fac_limit)
 
     #Create an RDFLib Graph
     g = Graph(namespace_manager=ns_manager)
@@ -401,12 +401,12 @@ def load_courses(data_dir, limit=None):
     return g
 
 
-def load_service(data_dir, limit=None, service_type_limit=None, service_group_codes=None):
+def load_service(data_dir, limit=None, service_type_limit=None, service_group_codes=None, fac_limit=None):
     print "Loading service. Limit is %s. Service type limit is %s. Service group codes is %s." \
           % (limit, service_type_limit, service_group_codes)
 
     #Get faculty ids from banner
-    faculty_gw_ids = get_faculty_gwids(data_dir)
+    faculty_gw_ids = get_faculty_gwids(data_dir, fac_limit=fac_limit)
 
     #Create an RDFLib Graph
     g = Graph(namespace_manager=ns_manager)

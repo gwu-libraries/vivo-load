@@ -51,23 +51,31 @@ pos_code_to_classes = {
 }
 
 
-def get_non_faculty_gwids(data_dir):
+def get_non_faculty_gwids(data_dir, non_fac_limit=None):
     gwids = []
     with codecs.open(os.path.join(data_dir, "vivo_emplappt.txt"), 'r', encoding="utf-8") as csv_file:
         reader = csv.reader(csv_file)
         for row in reader:
             if row[2] in pos_code_to_classes:
                 gwids.append(row[0])
-    return demographic_intersection(gwids, data_dir)
+    demo_gwids = demographic_intersection(gwids, data_dir)
+    if non_fac_limit and len(demo_gwids) > non_fac_limit:
+        return demo_gwids[:non_fac_limit]
+    else:
+        return demo_gwids
 
 
-def get_faculty_gwids(data_dir):
+def get_faculty_gwids(data_dir, fac_limit=None):
     gwids = set()
     with codecs.open(os.path.join(data_dir, "vivo_acadappt.txt"), 'r', encoding="utf-8") as csv_file:
         reader = csv.reader(csv_file)
         for row in reader:
             gwids.add(row[0])
-    return demographic_intersection(gwids, data_dir)
+    demo_gwids = demographic_intersection(gwids, data_dir)
+    if fac_limit and len(demo_gwids) > fac_limit:
+        return demo_gwids[:fac_limit]
+    else:
+        return demo_gwids
 
 
 def demographic_intersection(gwids, data_dir):
@@ -76,7 +84,7 @@ def demographic_intersection(gwids, data_dir):
         reader = csv.reader(csv_file)
         for row in reader:
             demo_gwids.add(row[0])
-    return demo_gwids.intersection(gwids)
+    return list(demo_gwids.intersection(gwids))
 
 
 def print_position_code_to_name(data_dir):
@@ -97,7 +105,7 @@ def print_position_code_to_name(data_dir):
         print "%s --> %s" % (pos_code, positions[pos_code])
 
 
-def load_demographic(data_dir, limit=None):
+def load_demographic(data_dir, limit=None, fac_limit=None, non_fac_limit=None):
     #"G37176643","Sabina","M","Alkire","Institute for International Economic Policy","1900 F Street NW",,"Washington","DC",,"20052","sabina_alkire@gwu.edu","sabina_alkire","202-994-5320"
     print """
     Loading demographic. Limit=%s.
@@ -106,15 +114,15 @@ def load_demographic(data_dir, limit=None):
     g = Graph(namespace_manager=ns_manager)
 
     #Get the non-faculty and faculty gwids
-    non_faculty_gwids = get_non_faculty_gwids(data_dir)
-    faculty_gwids = get_faculty_gwids(data_dir)
+    non_faculty_gwids = get_non_faculty_gwids(data_dir, non_fac_limit=non_fac_limit)
+    faculty_gwids = get_faculty_gwids(data_dir, fac_limit=fac_limit)
 
     with codecs.open(os.path.join(data_dir, "vivo_demographic.txt"), 'r', encoding="utf-8") as csv_file:
         reader = csv.reader(csv_file)
         p_count = 0
         for row in reader:
             gw_id = row[0]
-            if gw_id in faculty_gwids or non_faculty_gwids:
+            if gw_id in faculty_gwids or gw_id in non_faculty_gwids:
                 p = Person(gw_id)
                 p.first_name = row[1] if row[1] else None
                 p.middle_name = row[2] if row[2] else None
@@ -137,7 +145,7 @@ def load_demographic(data_dir, limit=None):
     return g
 
 
-def load_emplappt(data_dir, limit=None):
+def load_emplappt(data_dir, limit=None, non_fac_limit=None):
     #"G17437285","Uv Rsh Assoc Ft","28501","152401"
     print """
     Loading emplappt. Limit=%s.
@@ -145,13 +153,18 @@ def load_emplappt(data_dir, limit=None):
     #Create an RDFLib Graph
     g = Graph(namespace_manager=ns_manager)
 
+    #Get the non-faculty gwids
+    #Yes this isn't the most efficient, but simpler.
+    non_faculty_gwids = get_non_faculty_gwids(data_dir, non_fac_limit=non_fac_limit)
+
     with codecs.open(os.path.join(data_dir, "vivo_emplappt.txt"), 'r', encoding="utf-8") as csv_file:
         reader = csv.reader(csv_file)
         p_count = 0
         for row in reader:
+            gw_id = row[0]
             pos_cd = row[2]
-            if pos_cd in pos_code_to_classes:
-                nf = NonFaculty(Person(row[0]), pos_code_to_classes[pos_cd])
+            if gw_id in non_faculty_gwids and pos_cd in pos_code_to_classes:
+                nf = NonFaculty(Person(gw_id), pos_code_to_classes[pos_cd])
                 nf.title = row[1]
                 nf.home_organization = Organization(row[3])
                 g += nf.to_graph()
@@ -263,7 +276,7 @@ def load_depart(data_dir, limit=None):
     return g
 
 
-def load_acadappt(data_dir, limit=None, load_appt=True):
+def load_acadappt(data_dir, limit=None, load_appt=True, fac_limit=None):
     print """
     Loading acadappt. Limit=%s.
     """ % limit
@@ -272,22 +285,28 @@ def load_acadappt(data_dir, limit=None, load_appt=True):
     #Create an RDFLib Graph
     g = Graph(namespace_manager=ns_manager)
 
+    #Get the faculty gwids
+    #Yes this isn't the most efficient, but simpler.
+    faculty_gwids = get_faculty_gwids(data_dir, fac_limit=fac_limit)
+
     with codecs.open(os.path.join(data_dir, "vivo_acadappt.txt"), 'r', encoding="utf-8") as csv_file:
         reader = csv.reader(csv_file)
         for row_num, row in enumerate(reader):
-            f = Faculty(Person(row[0]), load_appt=load_appt)
-            f.department = Organization(row[2])
-            f.title = row[4]
-            f.start_term = row[5]
-            g += f.to_graph()
+            gw_id = row[0]
+            if gw_id in faculty_gwids:
+                f = Faculty(Person(gw_id), load_appt=load_appt)
+                f.department = Organization(row[2])
+                f.title = row[4]
+                f.start_term = row[5]
+                g += f.to_graph()
 
-            if limit and row_num >= limit-1:
-                break
+                if limit and row_num >= limit-1:
+                    break
 
     return g
 
 
-def load_courses(data_dir, limit=None):
+def load_courses(data_dir, limit=None, fac_limit=None):
     print """
     Loading courses. Limit=%s.
     """ % limit
@@ -296,15 +315,20 @@ def load_courses(data_dir, limit=None):
     #Create an RDFLib Graph
     g = Graph(namespace_manager=ns_manager)
 
+    #Get the faculty gwids
+    faculty_gwids = get_faculty_gwids(data_dir, fac_limit=fac_limit)
+
     #This file is supposed to be utf-8, but is not valid.
     with codecs.open(os.path.join(data_dir, "vivo_courses.txt"), 'r', encoding="utf-8", errors="ignore") as csv_file:
         reader = csv.reader(csv_file)
         for row_num, row in enumerate(reader):
-            c = Course(Person(row[0]), row[1], row[2], row[3])
-            c.course_title = row[4]
-            g += c.to_graph()
+            gw_id = row[0]
+            if gw_id in faculty_gwids:
+                c = Course(Person(gw_id), row[1], row[2], row[3])
+                c.course_title = row[4]
+                g += c.to_graph()
 
-            if limit and row_num >= limit-1:
-                break
+                if limit and row_num >= limit-1:
+                    break
 
     return g

@@ -38,40 +38,48 @@ if __name__ == '__main__':
     default_endpoint = "http://tomcat:8080/vivo/api/sparqlUpdate"
     parser.add_argument("--endpoint", default=default_endpoint, dest="endpoint",
                         help="Endpoint for SPARQL Update. Default is %s." % default_endpoint)
-
+    parser.add_argument("--print-triples", action="store_true",
+                        help="Print the triples to be added and deleted.")
 
     parent_parser = argparse.ArgumentParser(add_help=False)
-    parent_parser.add_argument("--limit", type=int, help="Number of rows from csv to load.")
+    parent_parser.add_argument("--limit", type=int, help="Limit to number of rows from csv to load.")
 
     subparsers = parser.add_subparsers(dest="graph")
 
-    faculty_parser = subparsers.add_parser("l_faculty", parents=[parent_parser])
+    fac_parser = argparse.ArgumentParser(add_help=False)
+    fac_parser.add_argument("--faculty-limit", type=int, help="Limit to number of faculty to load.", dest="fac_limit")
+    non_fac_parser = argparse.ArgumentParser(add_help=False)
+    non_fac_parser.add_argument("--non-faculty-limit", type=int, help="Limit to number of non-faculty to load.",
+                                dest="non_fac_limit")
+
+    faculty_parser = subparsers.add_parser("l_faculty", parents=[parent_parser, fac_parser])
     faculty_parser.add_argument("--skip-vcards", action="store_false", dest="load_vcards")
     faculty_parser.add_argument("--skip-departments", action="store_false", dest="load_departments")
     faculty_parser.add_argument("--skip-persons", action="store_false", dest="load_persons")
     faculty_parser.set_defaults(func=lyterati_load.load_faculty)
 
-    academic_appointment_parser = subparsers.add_parser("l_academic_appointment", parents=[parent_parser])
+    academic_appointment_parser = subparsers.add_parser("l_academic_appointment",
+                                                        parents=[parent_parser, fac_parser])
     academic_appointment_parser.set_defaults(func=lyterati_load.load_academic_appointment)
 
-    admin_appointment_parser = subparsers.add_parser("l_admin_appointment", parents=[parent_parser])
+    admin_appointment_parser = subparsers.add_parser("l_admin_appointment", parents=[parent_parser, fac_parser])
     admin_appointment_parser.set_defaults(func=lyterati_load.load_admin_appointment)
 
-    research_parser = subparsers.add_parser("l_research", parents=[parent_parser])
+    research_parser = subparsers.add_parser("l_research", parents=[parent_parser, fac_parser])
     research_parser.add_argument("--contribution-type-limit", type=int, help="Number of research entities to load.")
     research_parser.add_argument("--research-groups", nargs="+", dest="research_group_codes")
     research_parser.add_argument("--contribution-types", nargs="+", dest="contribution_type_codes")
     research_parser.set_defaults(func=lyterati_load.load_research)
 
-    education_parser = subparsers.add_parser("l_education", parents=[parent_parser])
+    education_parser = subparsers.add_parser("l_education", parents=[parent_parser, fac_parser])
     education_parser.add_argument("--degree-type-limit", type=int, help="Number of education entities to load.")
     education_parser.add_argument("--degree-types", nargs="+", dest="degree_types")
     education_parser.set_defaults(func=lyterati_load.load_education)
 
-    courses_parser = subparsers.add_parser("l_courses", parents=[parent_parser])
+    courses_parser = subparsers.add_parser("l_courses", parents=[parent_parser, fac_parser])
     courses_parser.set_defaults(func=lyterati_load.load_courses)
 
-    service_parser = subparsers.add_parser("l_service", parents=[parent_parser])
+    service_parser = subparsers.add_parser("l_service", parents=[parent_parser, fac_parser])
     service_parser.add_argument("--service-type-limit", type=int, help="Number of service entities to load.")
     service_parser.add_argument("--service-groups", nargs="+", dest="service_group_codes")
     service_parser.set_defaults(func=lyterati_load.load_service)
@@ -85,21 +93,20 @@ if __name__ == '__main__':
     depart_parser = subparsers.add_parser("b_department", parents=[parent_parser])
     depart_parser.set_defaults(func=banner_load.load_depart)
 
-    demographic_parser = subparsers.add_parser("b_demographic", parents=[parent_parser])
+    demographic_parser = subparsers.add_parser("b_demographic", parents=[parent_parser, fac_parser, non_fac_parser])
     demographic_parser.set_defaults(func=banner_load.load_demographic)
 
-    emplappt_parser = subparsers.add_parser("b_emplappt", parents=[parent_parser])
+    emplappt_parser = subparsers.add_parser("b_emplappt", parents=[parent_parser, non_fac_parser])
     emplappt_parser.set_defaults(func=banner_load.load_emplappt)
 
-    acadappt_parser = subparsers.add_parser("b_acadappt", parents=[parent_parser])
+    acadappt_parser = subparsers.add_parser("b_acadappt", parents=[parent_parser, fac_parser])
     acadappt_parser.add_argument("--skip-appt", action="store_false", dest="load_appt",
                                  help="Skip loading the academic appointment for the faculty.")
 
     acadappt_parser.set_defaults(func=banner_load.load_acadappt)
 
-    banner_courses_parser = subparsers.add_parser("b_courses", parents=[parent_parser])
+    banner_courses_parser = subparsers.add_parser("b_courses", parents=[parent_parser, fac_parser])
     banner_courses_parser.set_defaults(func=banner_load.load_courses)
-
 
     #Parse
     args = parser.parse_args()
@@ -118,6 +125,7 @@ if __name__ == '__main__':
     del func_args["username"]
     del func_args["password"]
     del func_args["endpoint"]
+    del func_args["print_triples"]
 
     #Invoke the function
     g = args.func(**func_args)
@@ -134,8 +142,12 @@ if __name__ == '__main__':
     g_del.namespace_manager = ns_manager
 
     #Print the diff
-    print "To add %s triples:\n%s" % (len(g_add), g_add.serialize(format="turtle"))
-    print "To delete %s triples:\n%s" % (len(g_del), g_del.serialize(format="turtle"))
+    print "To add %s triples." % len(g_add)
+    if args.print_triples:
+        print g_add.serialize(format="turtle")
+    print "To delete %s triples." % len(g_del)
+    if args.print_triples:
+        print g_del.serialize(format="turtle")
 
     if args.perform_load:
         if len(g_add) > 0:
