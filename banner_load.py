@@ -278,8 +278,8 @@ def load_depart(data_dir, limit=None):
 
 def load_acadappt(data_dir, limit=None, load_appt=True, fac_limit=None):
     print """
-    Loading acadappt. Limit=%s.
-    """ % limit
+    Loading acadappt. Limit=%s. Load appt=%s.
+    """ % (limit, load_appt)
 
     #"G10002741","625-25","LAW","200003","Fed Criminal Appellate Clinc","4","9",
     #Create an RDFLib Graph

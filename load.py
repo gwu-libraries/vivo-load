@@ -4,6 +4,42 @@ from rdflib.compare import graph_diff
 from sparql import load_previous_graph, sparql_load, sparql_delete, serialize
 import lyterati_load
 import banner_load
+import inspect
+from collections import OrderedDict
+
+
+def process_graph(g, local_args):
+    if local_args.perform_diff:
+        #Load the previous graph
+        prev_g = load_previous_graph(local_args.graph_dir, local_args.graph)
+    else:
+        prev_g = Graph(namespace_manager=ns_manager)
+
+    #Find the diff
+    (g_both, g_del, g_add) = graph_diff(prev_g, g)
+    g_add.namespace_manager = ns_manager
+    g_del.namespace_manager = ns_manager
+
+    #Print the diff
+    print "To add %s triples." % len(g_add)
+    if local_args.print_triples:
+        print g_add.serialize(format="turtle")
+    print "To delete %s triples." % len(g_del)
+    if local_args.print_triples:
+        print g_del.serialize(format="turtle")
+
+    if local_args.perform_load:
+        if len(g_add) > 0:
+            sparql_load(g_add, local_args.htdocs_dir, local_args.endpoint, local_args.username, local_args.password,
+                        split_size=local_args.split_size)
+        if len(g_del) > 0:
+            sparql_delete(g_del, local_args.username, local_args.endpoint, local_args.password,
+                          split_size=local_args.delete_split_size)
+
+    #Save to graphs archive directory
+    if local_args.perform_load and local_args.perform_serialize:
+        serialize(g, local_args.graph_dir, local_args.graph)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -108,13 +144,19 @@ if __name__ == '__main__':
     banner_courses_parser = subparsers.add_parser("b_courses", parents=[parent_parser, fac_parser])
     banner_courses_parser.set_defaults(func=banner_load.load_courses)
 
+    all_parser = subparsers.add_parser("all", parents=[fac_parser, non_fac_parser])
+
+    #Create map of parsers to names for use by load_all
+    subparser_map = {}
+    for name, subparser in subparsers.choices.items():
+        subparser_map[subparser] = name
+
     #Parse
     args = parser.parse_args()
     func_args = vars(args).copy()
 
     #Remove extraneous args
     del func_args["graph"]
-    del func_args["func"]
     del func_args["perform_load"]
     del func_args["perform_diff"]
     del func_args["perform_serialize"]
@@ -126,35 +168,40 @@ if __name__ == '__main__':
     del func_args["password"]
     del func_args["endpoint"]
     del func_args["print_triples"]
+    if "func" in func_args:
+        del func_args["func"]
 
-    #Invoke the function
-    g = args.func(**func_args)
-
-    if args.perform_diff:
-        #Load the previous graph
-        prev_g = load_previous_graph(args.graph_dir, args.graph)
+    #Map of function to map of (extra func args, graph name or none)
+    #This allows for providing additional arguments and setting the graph name in load_all
+    #Load all is special
+    if args.graph == "all":
+        funcs = OrderedDict([
+            (banner_load.load_demographic, ({}, subparser_map[demographic_parser])),
+            (banner_load.load_orgn, ({}, subparser_map[orgn_parser])),
+            (banner_load.load_emplappt, ({}, subparser_map[emplappt_parser])),
+            (banner_load.load_acadappt, ({ "skip_appt": True}, subparser_map[acadappt_parser])),
+            (lyterati_load.load_faculty, ({}, subparser_map[faculty_parser])),
+            (lyterati_load.load_academic_appointment, ({}, subparser_map[academic_appointment_parser])),
+            (lyterati_load.load_admin_appointment, ({}, subparser_map[admin_appointment_parser])),
+            (lyterati_load.load_research, ({}, subparser_map[research_parser])),
+            (lyterati_load.load_education, ({}, subparser_map[education_parser])),
+            (lyterati_load.load_courses, ({}, subparser_map[courses_parser])),
+            (lyterati_load.load_service, ({}, subparser_map[service_parser]))
+        ])
     else:
-        prev_g = Graph(namespace_manager=ns_manager)
-
-    #Find the diff
-    (g_both, g_del, g_add) = graph_diff(prev_g, g)
-    g_add.namespace_manager = ns_manager
-    g_del.namespace_manager = ns_manager
-
-    #Print the diff
-    print "To add %s triples." % len(g_add)
-    if args.print_triples:
-        print g_add.serialize(format="turtle")
-    print "To delete %s triples." % len(g_del)
-    if args.print_triples:
-        print g_del.serialize(format="turtle")
-
-    if args.perform_load:
-        if len(g_add) > 0:
-            sparql_load(g_add, args.htdocs_dir, args.endpoint, args.username, args.password, split_size=args.split_size)
-        if len(g_del) > 0:
-            sparql_delete(g_del, args.username, args.endpoint, args.password, split_size=args.delete_split_size)
-
-    #Save to graphs archive directory
-    if args.perform_load and args.perform_serialize:
-        serialize(g, args.graph_dir, args.graph)
+        funcs = { args.func: ({}, None)}
+        
+    for func, (extra_func_args, graph) in funcs.items():
+        if graph:
+            args.graph = graph
+        merge_func_args = func_args.copy()
+        if extra_func_args:
+            merge_func_args.update(extra_func_args)
+        #Limit to actual arguments (needed for load_all)
+        keys = list(merge_func_args.keys())
+        (arg_names, varargs, keywords, defaults) = inspect.getargspec(func)
+        for key in keys:
+            if key not in arg_names:
+                del merge_func_args[key]
+        g = func(**merge_func_args)
+        process_graph(g, args)

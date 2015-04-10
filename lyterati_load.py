@@ -5,10 +5,10 @@ from banner_load import get_faculty_gwids
 GWU = "The George Washington University"
 
 
-def load_faculty(data_dir, load_vcards=True, load_departments=True, load_persons=True, limit=None, fac_limit=None):
+def load_faculty(data_dir, load_departments=True, load_persons=True, limit=None, fac_limit=None):
     print """
-    Loading faculty. Load vcards=%s. Load departments=%s. Load persons=%s. Limit=%s.
-    """ % (load_vcards, load_departments, load_persons, limit)
+    Loading faculty. Load departments=%s. Load persons=%s. Limit=%s.
+    """ % (load_departments, load_persons, limit)
 
     #Get faculty ids from banner
     faculty_gw_ids = get_faculty_gwids(data_dir, fac_limit=fac_limit)
