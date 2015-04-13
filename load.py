@@ -1,8 +1,8 @@
-from lyterati_entity import *
+from fis_entity import *
 import argparse
 from rdflib.compare import graph_diff
 from sparql import load_previous_graph, sparql_load, sparql_delete, serialize
-import lyterati_load
+import fis_load
 import banner_load
 import inspect
 from collections import OrderedDict
@@ -92,33 +92,33 @@ if __name__ == '__main__':
     faculty_parser.add_argument("--skip-vcards", action="store_false", dest="load_vcards")
     faculty_parser.add_argument("--skip-departments", action="store_false", dest="load_departments")
     faculty_parser.add_argument("--skip-persons", action="store_false", dest="load_persons")
-    faculty_parser.set_defaults(func=lyterati_load.load_faculty)
+    faculty_parser.set_defaults(func=fis_load.load_faculty)
 
     academic_appointment_parser = subparsers.add_parser("l_academic_appointment",
                                                         parents=[parent_parser, fac_parser])
-    academic_appointment_parser.set_defaults(func=lyterati_load.load_academic_appointment)
+    academic_appointment_parser.set_defaults(func=fis_load.load_academic_appointment)
 
     admin_appointment_parser = subparsers.add_parser("l_admin_appointment", parents=[parent_parser, fac_parser])
-    admin_appointment_parser.set_defaults(func=lyterati_load.load_admin_appointment)
+    admin_appointment_parser.set_defaults(func=fis_load.load_admin_appointment)
 
     research_parser = subparsers.add_parser("l_research", parents=[parent_parser, fac_parser])
     research_parser.add_argument("--contribution-type-limit", type=int, help="Number of research entities to load.")
     research_parser.add_argument("--research-groups", nargs="+", dest="research_group_codes")
     research_parser.add_argument("--contribution-types", nargs="+", dest="contribution_type_codes")
-    research_parser.set_defaults(func=lyterati_load.load_research)
+    research_parser.set_defaults(func=fis_load.load_research)
 
     education_parser = subparsers.add_parser("l_education", parents=[parent_parser, fac_parser])
     education_parser.add_argument("--degree-type-limit", type=int, help="Number of education entities to load.")
     education_parser.add_argument("--degree-types", nargs="+", dest="degree_types")
-    education_parser.set_defaults(func=lyterati_load.load_education)
+    education_parser.set_defaults(func=fis_load.load_education)
 
     courses_parser = subparsers.add_parser("l_courses", parents=[parent_parser, fac_parser])
-    courses_parser.set_defaults(func=lyterati_load.load_courses)
+    courses_parser.set_defaults(func=fis_load.load_courses)
 
     service_parser = subparsers.add_parser("l_service", parents=[parent_parser, fac_parser])
     service_parser.add_argument("--service-type-limit", type=int, help="Number of service entities to load.")
     service_parser.add_argument("--service-groups", nargs="+", dest="service_group_codes")
-    service_parser.set_defaults(func=lyterati_load.load_service)
+    service_parser.set_defaults(func=fis_load.load_service)
 
     orgn_parser = subparsers.add_parser("b_organization", parents=[parent_parser])
     orgn_parser.set_defaults(func=banner_load.load_orgn)
@@ -180,13 +180,13 @@ if __name__ == '__main__':
             (banner_load.load_orgn, ({}, subparser_map[orgn_parser])),
             (banner_load.load_emplappt, ({}, subparser_map[emplappt_parser])),
             (banner_load.load_acadappt, ({ "skip_appt": True}, subparser_map[acadappt_parser])),
-            (lyterati_load.load_faculty, ({}, subparser_map[faculty_parser])),
-            (lyterati_load.load_academic_appointment, ({}, subparser_map[academic_appointment_parser])),
-            (lyterati_load.load_admin_appointment, ({}, subparser_map[admin_appointment_parser])),
-            (lyterati_load.load_research, ({}, subparser_map[research_parser])),
-            (lyterati_load.load_education, ({}, subparser_map[education_parser])),
-            (lyterati_load.load_courses, ({}, subparser_map[courses_parser])),
-            (lyterati_load.load_service, ({}, subparser_map[service_parser]))
+            (fis_load.load_faculty, ({}, subparser_map[faculty_parser])),
+            (fis_load.load_academic_appointment, ({}, subparser_map[academic_appointment_parser])),
+            (fis_load.load_admin_appointment, ({}, subparser_map[admin_appointment_parser])),
+            (fis_load.load_research, ({}, subparser_map[research_parser])),
+            (fis_load.load_education, ({}, subparser_map[education_parser])),
+            (fis_load.load_courses, ({}, subparser_map[courses_parser])),
+            (fis_load.load_service, ({}, subparser_map[service_parser]))
         ])
     else:
         funcs = { args.func: ({}, None)}

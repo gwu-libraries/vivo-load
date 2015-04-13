@@ -3,9 +3,9 @@ GWU VIVO Load
 
 A proof-of-concept tool for loading GWU data into [VIVO](http://vivoweb.org).
  
-Currently supports loading data from an export from 
-[Lyterati](http://www.entigence.com/#!lyterati/c6jw), the University's faculty information 
-system, and [Banner](https://banweb.gwu.edu), the University's business operations system.
+Currently supports loading data from an export from [Banner](https://banweb.gwu.edu), 
+the University's business operations system, and the University's faculty information 
+system.
 
 This code is intended to run in the [load docker container](https://github.com/gwu-libraries/vivo-docker).
 
@@ -15,7 +15,7 @@ Running a load
 ===========
 Notes:
 
-* By default, the Lyterati and Banner export is expected to be in `./data`.  (Make sure to use 
+* By default, the exports are expected to be in `./data`.  (Make sure to use 
 non-password protected versions of the files.)  This can be overridden with `--data-dir`.
 * A web server is required (to support a SPARQL Load).  The default location for the 
 html document root directory is `/usr/local/apache2/htdocs`.  This can be overridden with `--htdocs-dir`.

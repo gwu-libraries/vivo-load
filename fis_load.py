@@ -1,5 +1,5 @@
 import os
-from lyterati_entity import *
+from fis_entity import *
 from banner_load import get_faculty_gwids
 
 GWU = "The George Washington University"
