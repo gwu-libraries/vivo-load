@@ -64,43 +64,13 @@ class Organization():
         return g
 
 
-class AcademicAppointment():
+class Appointment():
 
-    def __init__(self, person, department, rank):
-        self.department = department
-        self.person = person
-        self.rank = rank
-        self.uri = D[to_hash_identifier(PREFIX_APPOINTMENT, (department.uri, person.uri, rank))]
-
-        self.start_term = None
-        self.end_term = None
-
-    def to_graph(self):
-        #Create an RDFLib Graph
-        g = Graph()
-
-        g.add((self.uri, RDF.type, VIVO.FacultyPosition))
-        g.add((self.uri, RDFS.label, Literal(self.rank)))
-        #Related by
-        g.add((self.person.uri, VIVO.relatedBy, self.uri))
-        g.add((self.department.uri, VIVO.relatedBy, self.uri))
-
-        interval_uri = self.uri + "-interval"
-        interval_start_uri = interval_uri + "-start"
-        interval_end_uri = interval_uri + "-end"
-        add_date_interval(interval_uri, self.uri, g,
-                          interval_start_uri if add_season_date(interval_start_uri, self.start_term, g) else None,
-                          interval_end_uri if add_season_date(interval_end_uri, self.end_term, g) else None)
-
-        return g
-
-
-class AdminAppointment():
-
-    def __init__(self, person, organization, rank):
+    def __init__(self, person, organization, rank, appt_type):
         self.person = person
         self.organization = organization
         self.rank = rank
+        self.appt_type = appt_type
         self.uri = D[to_hash_identifier(PREFIX_APPOINTMENT, (person.uri, organization.uri, rank))]
 
         self.title = None
@@ -111,7 +81,7 @@ class AdminAppointment():
         #Create an RDFLib Graph
         g = Graph()
 
-        g.add((self.uri, RDF.type, VIVO.FacultyAdministrativePosition))
+        g.add((self.uri, RDF.type, self.appt_type))
         #Title otherwise rank
         g.add((self.uri, RDFS.label, Literal(self.title or self.rank)))
         #Related by
@@ -126,6 +96,19 @@ class AdminAppointment():
                           interval_end_uri if add_season_date(interval_end_uri, self.end_term, g) else None)
 
         return g
+
+
+class AcademicAppointment(Appointment):
+
+    def __init__(self, person, organization, rank):
+        Appointment.__init__(self, person, organization, rank, VIVO.FacultyPosition)
+
+
+class AdminAppointment():
+
+    def __init__(self, person, organization, rank):
+        Appointment.__init__(self, person, organization, rank, VIVO.FacultyAdministrativePosition)
+
 
 
 class Document():

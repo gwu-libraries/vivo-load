@@ -1,17 +1,41 @@
 import os
 from fis_entity import *
 from banner_load import get_faculty_gwids
+import codecs
+import csv
 
 GWU = "The George Washington University"
 
 
-def load_faculty(data_dir, load_departments=True, load_persons=True, limit=None, fac_limit=None):
-    print """
-    Loading faculty. Load departments=%s. Load persons=%s. Limit=%s.
-    """ % (load_departments, load_persons, limit)
+def get_department_names(data_dir):
+    department_names = []
+    with codecs.open(os.path.join(data_dir, "fis_departments.txt"), 'r', encoding="utf-8") as csv_file:
+        reader = csv.reader(csv_file, delimiter="\t")
 
-    #Get faculty ids from banner
-    faculty_gw_ids = get_faculty_gwids(data_dir, fac_limit=fac_limit)
+        for row_num, row in enumerate(reader):
+            #Skip header
+            if row_num == 0:
+                continue
+            department_names.append(row[1])
+    return department_names
+
+
+def valid_department_name(name):
+    if name and name not in ("No Department","University-level Dept"):
+        return True
+    return False
+
+
+def valid_college_name(name):
+    if name and name not in ("University","No College Designated"):
+        return True
+    return False
+
+
+def load_departments(data_dir, limit=None, fac_limit=None):
+    print """
+    Loading departments. Limit=%s.
+    """ % limit
 
     #Create an RDFLib Graph
     g = Graph(namespace_manager=ns_manager)
@@ -19,39 +43,44 @@ def load_faculty(data_dir, load_departments=True, load_persons=True, limit=None,
     gwu = Organization(GWU, organization_type="University", is_gw=True)
     g += gwu.to_graph()
 
-    ws = XlWrapper(os.path.join(data_dir, "faculty.xlsx"))
+    for result_num, result in enumerate(xml_result_generator(os.path.join(data_dir, "fis_department.xml"))):
+        if valid_department_name(result["department"]) and valid_college_name(result["college"]):
+            #College
+            c = Organization(result["college"], organization_type="College", is_gw=True)
+            c.part_of = gwu
+            g += c.to_graph()
+            #Department
+            d = Organization(result["department"], organization_type="Department", is_gw=True)
+            d.part_of = c
+            g += d.to_graph()
+        if limit and result_num >= limit-1:
+            break
 
-    #Skip header row
-    row_num = 1
-    while row_num < (limit or ws.nrows):
-        #Department
-        #The department contained in faculty.csv shouldn't be used to create
-        #association with faculty because it doesn't indicate anything about position.
-        #However, it is useful for getting some organizations.
-        d = None
-        if load_departments:
-            college_name = ws.cell_value(row_num, "College Name")
-            if college_name and college_name not in ("No College Designated", "University"):
-                c = Organization(college_name, organization_type="College", is_gw=True)
-                c.part_of = gwu
-                g += c.to_graph()
-                department_name = ws.cell_value(row_num, "Department Name")
-                if department_name and department_name not in ("No Department", "University-level Dept"):
-                    d = Organization(department_name, organization_type="Department", is_gw=True)
-                    d.part_of = c
-                    g += d.to_graph()
+    return g
 
-        #Person
-        if load_persons:
-            gw_id = strip_gw_prefix(ws.cell_value(row_num, "Faculty ID"))
-            if gw_id in faculty_gw_ids:
-                p = Person(gw_id)
-                p.personal_statement = ws.cell_value(row_num, "Personal Statement")
-                p.home_department = d
-                p.scholarly_interest = ws.cell_value(row_num, "Area of Scholary Interest")
-                g += p.to_graph()
 
-        row_num += 1
+def load_faculty(data_dir, limit=None, fac_limit=None):
+    print """
+    Loading faculty. Limit=%s.
+    """ % limit
+
+    #Get faculty ids from banner
+    faculty_gw_ids = get_faculty_gwids(data_dir, fac_limit=fac_limit)
+
+    #Create an RDFLib Graph
+    g = Graph(namespace_manager=ns_manager)
+
+    for result_num, result in enumerate(xml_result_generator(os.path.join(data_dir, "fis_faculty.xml"))):
+        if result["gwid"] in faculty_gw_ids:
+            p = Person(result["gwid"])
+            p.personal_statement = result["personal_statement"]
+            if valid_department_name(result["home_department"]) and valid_college_name(result["home_college"]):
+                p.home_department = Organization(result["home_department"])
+            p.scholarly_interest = result["research_areas"]
+            g += p.to_graph()
+
+        if limit and result_num >= limit-1:
+            break
 
     return g
 
@@ -65,27 +94,30 @@ def load_academic_appointment(data_dir, limit=None, fac_limit=None):
     #Create an RDFLib Graph
     g = Graph(namespace_manager=ns_manager)
 
-    ws = XlWrapper(os.path.join(data_dir, "Academic Appointment.xlsx"))
+    for result_num, result in enumerate(xml_result_generator(os.path.join(data_dir, "fis_academic_appointment.xml"))):
+        if result["gwid"] in faculty_gw_ids:
+            p = Person(result["gwid"])
 
-    #Skip header row
-    row_num = 1
-    while row_num < (limit or ws.nrows):
-        #Person stub
-        gw_id = strip_gw_prefix(ws.cell_value(row_num, "Faculty ID"))
-        if gw_id in faculty_gw_ids:
-            p = Person(gw_id)
+            #Assuming that departments and colleges already created when
+            #faculty loaded
+            o = None
+            #If Department name, then Department
+            if valid_department_name(result["department"]):
+                o = Organization(result["department"])
+            #Else, if College name, then College
+            elif valid_college_name(result["college"]):
+                o = Organization(result["college"])
 
-            #Department stub
-            department_name = ws.cell_value(row_num, "Department Name")
-            #Skip an appointment without a department
-            if department_name:
-                o = Organization(department_name)
-                rank = ws.cell_value(row_num, "Rank")
-                a = AcademicAppointment(p, o, rank)
-                a.start_term = ws.cell_value(row_num, "Start Term")
-                a.end_term = ws.cell_value(row_num, "End Term")
+            #Skip if no department or college:
+            if o:
+                a = AcademicAppointment(p, o, result["rank"])
+                a.title = result["title"]
+                a.start_term = result["start_term"]
+                a.end_term = result["end_term"]
                 g += a.to_graph()
-        row_num += 1
+
+        if limit and result_num >= limit-1:
+            break
 
     return g
 
@@ -103,38 +135,30 @@ def load_admin_appointment(data_dir, limit=None, fac_limit=None):
     gwu = Organization(GWU, organization_type="University", is_gw=True)
     g += gwu.to_graph()
 
-    ws = XlWrapper(os.path.join(data_dir, "Admin Appointment.xlsx"))
-
-    #Skip header row
-    row_num = 1
-    while row_num < (limit or ws.nrows):
-        #Person stub
-        gw_id = strip_gw_prefix(ws.cell_value(row_num, "Faculty ID"))
-        if gw_id in faculty_gw_ids:
-            p = Person(gw_id)
+    for result_num, result in enumerate(xml_result_generator(os.path.join(data_dir, "fis_admin_appointment.xml"))):
+        if result["gwid"] in faculty_gw_ids:
+            p = Person(result["gwid"])
 
             #Assuming that departments and colleges already created when
             #faculty loaded
-            college_name = ws.cell_value(row_num, "College Name")
-            department_name = ws.cell_value(row_num, "Department Name")
             #If Department name, then Department
-            if department_name and department_name not in ("No Department", "University-level Dept"):
-                o = Organization(department_name)
+            if valid_department_name(result["department"]):
+                o = Organization(result["department"])
             #Else, if College name, then College
-            elif college_name and college_name not in ("No College Designated", "University"):
-                o = Organization(college_name)
+            elif valid_college_name(result["college"]):
+                o = Organization(result["college"])
             #Else GWU
             else:
                 o = gwu
 
-            rank = ws.cell_value(row_num, "Rank")
-            a = AdminAppointment(p, o, rank)
-            a.title = ws.cell_value(row_num, "Title")
-            a.start_term = ws.cell_value(row_num, "Start Term")
-            a.end_term = ws.cell_value(row_num, "End Term")
+            a = AdminAppointment(p, o, result["rank"])
+            a.title = result["title"]
+            a.start_term = result["start_term"]
+            a.end_term = result["end_term"]
             g += a.to_graph()
 
-        row_num += 1
+        if limit and result_num >= limit-1:
+            break
 
     return g
 

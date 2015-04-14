@@ -4,7 +4,7 @@ from rdflib import Literal, RDF, RDFS, XSD
 from namespace import *
 import re
 import xlrd
-
+from xml.dom.pulldom import START_ELEMENT, parse
 
 def num_to_str(num):
     """
@@ -130,11 +130,12 @@ def add_season_date(date_uri, date_str, g):
 
     Returns true if parse was successful.
     """
-    m = term_re.match(date_str)
-    if m:
-        season = m.group(1)
-        year = m.group(2)
-        return add_date(date_uri, year, g, season_to_month(season), label=date_str)
+    if date_str:
+        m = term_re.match(date_str)
+        if m:
+            season = m.group(1)
+            year = m.group(2)
+            return add_date(date_uri, year, g, season_to_month(season), label=date_str)
     return False
 
 
@@ -177,3 +178,18 @@ class XlWrapper():
         if isinstance(value, basestring):
             return value.replace("\f", "")
         return value
+
+
+def xml_result_generator(filepath):
+    doc = parse(filepath)
+    for event, node in doc:
+        if event == START_ELEMENT and node.localName == "row":
+            doc.expandNode(node)
+            result = {}
+            for field_node in node.getElementsByTagName("field"):
+                if field_node.hasAttribute("xsi:nil") or field_node.firstChild is None:
+                    value = None
+                else:
+                    value = field_node.firstChild.nodeValue
+                result[field_node.getAttribute("name")] = value
+            yield result

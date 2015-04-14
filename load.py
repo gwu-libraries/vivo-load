@@ -88,17 +88,17 @@ if __name__ == '__main__':
     non_fac_parser.add_argument("--non-faculty-limit", type=int, help="Limit to number of non-faculty to load.",
                                 dest="non_fac_limit")
 
-    faculty_parser = subparsers.add_parser("l_faculty", parents=[parent_parser, fac_parser])
-    faculty_parser.add_argument("--skip-vcards", action="store_false", dest="load_vcards")
-    faculty_parser.add_argument("--skip-departments", action="store_false", dest="load_departments")
-    faculty_parser.add_argument("--skip-persons", action="store_false", dest="load_persons")
+    fis_department_parser = subparsers.add_parser("fis_department", parents=[parent_parser])
+    fis_department_parser.set_defaults(func=fis_load.load_departments)
+
+    faculty_parser = subparsers.add_parser("fis_faculty", parents=[parent_parser, fac_parser])
     faculty_parser.set_defaults(func=fis_load.load_faculty)
 
-    academic_appointment_parser = subparsers.add_parser("l_academic_appointment",
+    academic_appointment_parser = subparsers.add_parser("fis_academic_appointment",
                                                         parents=[parent_parser, fac_parser])
     academic_appointment_parser.set_defaults(func=fis_load.load_academic_appointment)
 
-    admin_appointment_parser = subparsers.add_parser("l_admin_appointment", parents=[parent_parser, fac_parser])
+    admin_appointment_parser = subparsers.add_parser("fis_admin_appointment", parents=[parent_parser, fac_parser])
     admin_appointment_parser.set_defaults(func=fis_load.load_admin_appointment)
 
     research_parser = subparsers.add_parser("l_research", parents=[parent_parser, fac_parser])
@@ -126,8 +126,8 @@ if __name__ == '__main__':
     college_parser = subparsers.add_parser("b_college", parents=[parent_parser])
     college_parser.set_defaults(func=banner_load.load_college)
 
-    depart_parser = subparsers.add_parser("b_department", parents=[parent_parser])
-    depart_parser.set_defaults(func=banner_load.load_depart)
+    banner_department_parser = subparsers.add_parser("b_department", parents=[parent_parser])
+    banner_department_parser.set_defaults(func=banner_load.load_depart)
 
     demographic_parser = subparsers.add_parser("b_demographic", parents=[parent_parser, fac_parser, non_fac_parser])
     demographic_parser.set_defaults(func=banner_load.load_demographic)
@@ -180,6 +180,7 @@ if __name__ == '__main__':
             (banner_load.load_orgn, ({}, subparser_map[orgn_parser])),
             (banner_load.load_emplappt, ({}, subparser_map[emplappt_parser])),
             (banner_load.load_acadappt, ({ "skip_appt": True}, subparser_map[acadappt_parser])),
+            (fis_load.load_departments, ({}, subparser_map[fis_department_parser])),
             (fis_load.load_faculty, ({}, subparser_map[faculty_parser])),
             (fis_load.load_academic_appointment, ({}, subparser_map[academic_appointment_parser])),
             (fis_load.load_admin_appointment, ({}, subparser_map[admin_appointment_parser])),
