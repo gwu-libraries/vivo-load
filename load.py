@@ -4,8 +4,8 @@ from rdflib.compare import graph_diff
 from sparql import load_previous_graph, sparql_load, sparql_delete, serialize
 import fis_load
 import banner_load
-import inspect
 from collections import OrderedDict
+from utility import remove_extra_args
 
 
 def process_graph(g, local_args):
@@ -77,132 +77,55 @@ if __name__ == '__main__':
     parser.add_argument("--print-triples", action="store_true",
                         help="Print the triples to be added and deleted.")
 
-    parent_parser = argparse.ArgumentParser(add_help=False)
-    parent_parser.add_argument("--limit", type=int, help="Limit to number of rows from csv to load.")
+    parser.add_argument("--limit", type=int, help="Limit to number of rows from data file to load.")
+    parser.add_argument("--faculty-limit", type=int, help="Limit to number of faculty to load.", dest="fac_limit")
+    parser.add_argument("--non-faculty-limit", type=int, help="Limit to number of non-faculty to load.",
+                        dest="non_fac_limit")
+    parser.add_argument("--skip-appt", action="store_false", dest="load_appt",
+                        help="Skip loading the academic appointment for the faculty. For b_acadappt only.")
 
-    subparsers = parser.add_subparsers(dest="graph")
+    #Map of label for data type to load function.
+    data_type_map = OrderedDict([
+        ("b_demographic", banner_load.load_demographic),
+        ("b_organization", banner_load.load_orgn),
+        ("b_emplappt", banner_load.load_emplappt),
+        ("b_acadappt", banner_load.load_acadappt),
+        ("fis_department", fis_load.load_departments),
+        ("fis_faculty", fis_load.load_faculty),
+        ("fis_acadappt", fis_load.load_academic_appointment),
+        ("fis_degree_ed", fis_load.load_degree_education),
+        ("fis_non_degree_ed", fis_load.load_non_degree_education),
+        ("fis_courses", fis_load.load_courses),
+        ("fis_awards", fis_load.load_awards),
+        ("fis_prof_memberships", fis_load.load_professional_memberships),
+        ("fis_reviewers", fis_load.load_reviewerships),
+        ("fis_presentations", fis_load.load_presentations)
+        #TODO:  Rest of service and research
 
-    fac_parser = argparse.ArgumentParser(add_help=False)
-    fac_parser.add_argument("--faculty-limit", type=int, help="Limit to number of faculty to load.", dest="fac_limit")
-    non_fac_parser = argparse.ArgumentParser(add_help=False)
-    non_fac_parser.add_argument("--non-faculty-limit", type=int, help="Limit to number of non-faculty to load.",
-                                dest="non_fac_limit")
+    ])
 
-    fis_department_parser = subparsers.add_parser("fis_department", parents=[parent_parser])
-    fis_department_parser.set_defaults(func=fis_load.load_departments)
+    data_types = list(data_type_map.keys())
+    data_types.append("all")
 
-    faculty_parser = subparsers.add_parser("fis_faculty", parents=[parent_parser, fac_parser])
-    faculty_parser.set_defaults(func=fis_load.load_faculty)
-
-    academic_appointment_parser = subparsers.add_parser("fis_academic_appointment",
-                                                        parents=[parent_parser, fac_parser])
-    academic_appointment_parser.set_defaults(func=fis_load.load_academic_appointment)
-
-    admin_appointment_parser = subparsers.add_parser("fis_admin_appointment", parents=[parent_parser, fac_parser])
-    admin_appointment_parser.set_defaults(func=fis_load.load_admin_appointment)
-
-    research_parser = subparsers.add_parser("l_research", parents=[parent_parser, fac_parser])
-    research_parser.add_argument("--contribution-type-limit", type=int, help="Number of research entities to load.")
-    research_parser.add_argument("--research-groups", nargs="+", dest="research_group_codes")
-    research_parser.add_argument("--contribution-types", nargs="+", dest="contribution_type_codes")
-    research_parser.set_defaults(func=fis_load.load_research)
-
-    education_parser = subparsers.add_parser("l_education", parents=[parent_parser, fac_parser])
-    education_parser.add_argument("--degree-type-limit", type=int, help="Number of education entities to load.")
-    education_parser.add_argument("--degree-types", nargs="+", dest="degree_types")
-    education_parser.set_defaults(func=fis_load.load_education)
-
-    courses_parser = subparsers.add_parser("l_courses", parents=[parent_parser, fac_parser])
-    courses_parser.set_defaults(func=fis_load.load_courses)
-
-    service_parser = subparsers.add_parser("l_service", parents=[parent_parser, fac_parser])
-    service_parser.add_argument("--service-type-limit", type=int, help="Number of service entities to load.")
-    service_parser.add_argument("--service-groups", nargs="+", dest="service_group_codes")
-    service_parser.set_defaults(func=fis_load.load_service)
-
-    orgn_parser = subparsers.add_parser("b_organization", parents=[parent_parser])
-    orgn_parser.set_defaults(func=banner_load.load_orgn)
-
-    college_parser = subparsers.add_parser("b_college", parents=[parent_parser])
-    college_parser.set_defaults(func=banner_load.load_college)
-
-    banner_department_parser = subparsers.add_parser("b_department", parents=[parent_parser])
-    banner_department_parser.set_defaults(func=banner_load.load_depart)
-
-    demographic_parser = subparsers.add_parser("b_demographic", parents=[parent_parser, fac_parser, non_fac_parser])
-    demographic_parser.set_defaults(func=banner_load.load_demographic)
-
-    emplappt_parser = subparsers.add_parser("b_emplappt", parents=[parent_parser, non_fac_parser])
-    emplappt_parser.set_defaults(func=banner_load.load_emplappt)
-
-    acadappt_parser = subparsers.add_parser("b_acadappt", parents=[parent_parser, fac_parser])
-    acadappt_parser.add_argument("--skip-appt", action="store_false", dest="load_appt",
-                                 help="Skip loading the academic appointment for the faculty.")
-
-    acadappt_parser.set_defaults(func=banner_load.load_acadappt)
-
-    banner_courses_parser = subparsers.add_parser("b_courses", parents=[parent_parser, fac_parser])
-    banner_courses_parser.set_defaults(func=banner_load.load_courses)
-
-    all_parser = subparsers.add_parser("all", parents=[fac_parser, non_fac_parser])
-
-    #Create map of parsers to names for use by load_all
-    subparser_map = {}
-    for name, subparser in subparsers.choices.items():
-        subparser_map[subparser] = name
+    parser.add_argument("data_type", nargs="+", choices=data_types,
+                        help="The type of data to load or all for all data.")
 
     #Parse
     args = parser.parse_args()
-    func_args = vars(args).copy()
 
-    #Remove extraneous args
-    del func_args["graph"]
-    del func_args["perform_load"]
-    del func_args["perform_diff"]
-    del func_args["perform_serialize"]
-    del func_args["htdocs_dir"]
-    del func_args["graph_dir"]
-    del func_args["split_size"]
-    del func_args["delete_split_size"]
-    del func_args["username"]
-    del func_args["password"]
-    del func_args["endpoint"]
-    del func_args["print_triples"]
-    if "func" in func_args:
-        del func_args["func"]
+    #If all selected
+    if "all" in args.data_type:
+        #Forcing skipping appt for b_acadappt
+        args.load_appt = False
+        #Replace data types with ordered list of all data types
+        args.data_type = data_type_map.keys()
 
-    #Map of function to map of (extra func args, graph name or none)
-    #This allows for providing additional arguments and setting the graph name in load_all
-    #Load all is special
-    if args.graph == "all":
-        funcs = OrderedDict([
-            (banner_load.load_demographic, ({}, subparser_map[demographic_parser])),
-            (banner_load.load_orgn, ({}, subparser_map[orgn_parser])),
-            (banner_load.load_emplappt, ({}, subparser_map[emplappt_parser])),
-            (banner_load.load_acadappt, ({ "skip_appt": True}, subparser_map[acadappt_parser])),
-            (fis_load.load_departments, ({}, subparser_map[fis_department_parser])),
-            (fis_load.load_faculty, ({}, subparser_map[faculty_parser])),
-            (fis_load.load_academic_appointment, ({}, subparser_map[academic_appointment_parser])),
-            (fis_load.load_admin_appointment, ({}, subparser_map[admin_appointment_parser])),
-            (fis_load.load_research, ({}, subparser_map[research_parser])),
-            (fis_load.load_education, ({}, subparser_map[education_parser])),
-            (fis_load.load_courses, ({}, subparser_map[courses_parser])),
-            (fis_load.load_service, ({}, subparser_map[service_parser]))
-        ])
-    else:
-        funcs = { args.func: ({}, None)}
-        
-    for func, (extra_func_args, graph) in funcs.items():
-        if graph:
-            args.graph = graph
-        merge_func_args = func_args.copy()
-        if extra_func_args:
-            merge_func_args.update(extra_func_args)
-        #Limit to actual arguments (needed for load_all)
-        keys = list(merge_func_args.keys())
-        (arg_names, varargs, keywords, defaults) = inspect.getargspec(func)
-        for key in keys:
-            if key not in arg_names:
-                del merge_func_args[key]
-        g = func(**merge_func_args)
+    #Load each data type
+    for data_type in args.data_type:
+        func_args = vars(args).copy()
+        args.graph = data_type
+        func = data_type_map[data_type]
+        #Limit to actual arguments
+        remove_extra_args(func_args, func)
+        g = func(**func_args)
         process_graph(g, args)

@@ -5,6 +5,9 @@ from namespace import *
 import re
 import xlrd
 from xml.dom.pulldom import START_ELEMENT, parse
+import inspect
+import codecs
+from lxml import etree
 
 def num_to_str(num):
     """
@@ -67,9 +70,18 @@ months = ("January",
 def month_str_to_month_int(month_str):
     """
     Converts a month name to the corresponding month number.
+
+    If already a number, returns the number.
+
+    Also, tries to convert the string to a number.
     """
     if isinstance(month_str, Number):
         return month_str
+
+    try:
+        return int(month_str)
+    except ValueError:
+        pass
 
     return months.index(month_str)+1
 
@@ -181,15 +193,27 @@ class XlWrapper():
 
 
 def xml_result_generator(filepath):
-    doc = parse(filepath)
-    for event, node in doc:
-        if event == START_ELEMENT and node.localName == "row":
-            doc.expandNode(node)
-            result = {}
-            for field_node in node.getElementsByTagName("field"):
-                if field_node.hasAttribute("xsi:nil") or field_node.firstChild is None:
-                    value = None
-                else:
-                    value = field_node.firstChild.nodeValue
-                result[field_node.getAttribute("name")] = value
-            yield result
+    """
+    Returns a generator that provides maps of field names to values read from
+    xml produced by mysql --xml.
+    """
+    #Using lxml because recover=True makes it tolerant of unicode encoding problems.
+    for event, row_elem in etree.iterparse(filepath, tag="row", recover=True):
+        result = {}
+        for field_elem in row_elem.iter("field"):
+            if "xsi:nil" in field_elem.attrib or not field_elem.text:
+                value = None
+            else:
+                value = field_elem.text
+            result[field_elem.get("name")] = value
+        yield result
+
+
+def remove_extra_args(func_args, func):
+    """
+    Removes values from map of function arguments that are not necessary to invoke the function.
+    """
+    (arg_names, varargs, keywords, defaults) = inspect.getargspec(func)
+    for key in list(func_args.keys()):
+        if key not in arg_names:
+            del func_args[key]

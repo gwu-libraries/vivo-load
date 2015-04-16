@@ -32,135 +32,204 @@ def valid_college_name(name):
     return False
 
 
-def load_departments(data_dir, limit=None, fac_limit=None):
-    print """
-    Loading departments. Limit=%s.
-    """ % limit
+class Loader():
+    def __init__(self, filename, data_dir,
+                 has_fac=False, entity_class=None, field_to_entity=None, field_rename=None,
+                 add_entities_from_fields=None,
+                 limit=None, fac_limit=None):
+        self.filename = filename
+        self.data_dir = data_dir
+        self.limit = limit
+        #Map of result field names to entity classes. Classes must take a single positional argument.
+        self.field_to_entity = field_to_entity or {}
+        #Map of result field names to rename.
+        self.field_rename = field_rename or {}
+        #The entity class to create.
+        self.entity_class = entity_class
+        #List of fields that contain entities that should be added to graph.
+        self.add_entities_from_fields = add_entities_from_fields or []
 
-    #Create an RDFLib Graph
-    g = Graph(namespace_manager=ns_manager)
+        #Create an RDFLib Graph
+        self.g = Graph(namespace_manager=ns_manager)
 
-    gwu = Organization(GWU, organization_type="University", is_gw=True)
-    g += gwu.to_graph()
+        #Get faculty ids from banner
+        self.fac_gw_ids = None
+        if has_fac:
+            self.fac_gw_ids = get_faculty_gwids(data_dir, fac_limit=fac_limit)
 
-    for result_num, result in enumerate(xml_result_generator(os.path.join(data_dir, "fis_department.xml"))):
-        if valid_department_name(result["department"]) and valid_college_name(result["college"]):
-            #College
-            c = Organization(result["college"], organization_type="College", is_gw=True)
-            c.part_of = gwu
-            g += c.to_graph()
-            #Department
-            d = Organization(result["department"], organization_type="Department", is_gw=True)
-            d.part_of = c
-            g += d.to_graph()
-        if limit and result_num >= limit-1:
-            break
+    def load(self):
+        addl_entities = self._addl_entities()
+        for entity in addl_entities:
+            self.g += entity.to_graph()
 
-    return g
+        for result_num, result in enumerate(xml_result_generator(os.path.join(self.data_dir, self.filename))):
+            #Check the _use_result function
+            if (self._use_result(result)
+                #Optionally limit by faculty ids
+                and (self.fac_gw_ids is None or result["gw_id"] in self.fac_gw_ids)):
+                #Optionally process the result to change values
+                self._process_result(result)
+
+                #Optionally map some result values to entities (e.g., organization)
+                for key, clazz in self.field_to_entity.items():
+                    if key in result:
+                        result[key] = clazz(result[key])
+
+                #Optionally rename some fields
+                for src_key, dest_key in self.field_rename.items():
+                    if src_key in result:
+                        result[dest_key] = result[src_key]
+                        del result[src_key]
+
+                #Generate the entities
+                entities = self._generate_entities(result)
+                for entity in entities:
+                    self.g += entity.to_graph()
+            if self.limit and result_num >= self.limit-1:
+                break
+
+        return self.g
+
+    def _addl_entities(self):
+        return []
+
+    def _use_result(self, result):
+        return True
+
+    def _process_result(self, result):
+        pass
+
+    def _generate_entities(self, result):
+        #Instantiate an entity using the result as keyword args
+        entities = [self._create_entity(self.entity_class, result)]
+        for field in self.add_entities_from_fields:
+            if field in result and result[field] and hasattr(result[field], "to_graph"):
+                entities.append(result[field])
+
+        return entities
+
+    @staticmethod
+    def _create_entity(clazz, args):
+        remove_extra_args(args, clazz.__init__)
+        return clazz(**args)
+
+
+class BasicLoader(Loader):
+    """
+    A Loader that maps gw_id field to a Person entity
+    and organization field to an Organization entity.
+
+    The Organization entity is also added to the graph.
+    """
+
+    def __init__(self, filename, data_dir, entity_class=None,
+                 limit=None, fac_limit=None):
+        Loader.__init__(self, filename, data_dir, has_fac=True, entity_class=entity_class,
+                        field_to_entity={"gw_id": Person, "organization": Organization},
+                        field_rename={"gw_id": "person"}, add_entities_from_fields=["organization"],
+                        limit=limit, fac_limit=fac_limit)
+
+
+class DepartmentLoader(Loader):
+    def __init__(self, data_dir, limit=None):
+        Loader.__init__(self, "fis_department.xml", data_dir, limit=limit)
+        self.gwu = Organization(GWU, organization_type="University", is_gw=True)
+
+    def _addl_entities(self):
+        return [self.gwu]
+
+    def _use_result(self, result):
+        return valid_department_name(result["department"]) and valid_college_name(result["college"])
+
+    def _generate_entities(self, result):
+        #College
+        c = Organization(result["college"], organization_type="College", is_gw=True, part_of=self.gwu)
+        #Department
+        d = Organization(result["department"], organization_type="Department", is_gw=True, part_of=c)
+        return [c, d]
+
+
+def load_departments(data_dir, limit=None):
+    print "Loading departments."
+
+    l = DepartmentLoader(data_dir)
+    return l.load()
+
+
+class FacultyLoader(Loader):
+    def __init__(self, data_dir, limit=None, fac_limit=None):
+        Loader.__init__(self, "fis_faculty.xml", data_dir, has_fac=True, entity_class=Person,
+                        field_to_entity={"home_department": Organization}, limit=limit, fac_limit=fac_limit)
+
+    def _process_result(self, result):
+        if not (valid_department_name(result["home_department"]) and valid_college_name(result["home_college"])):
+            #Remove home department
+            del result["home_department"]
 
 
 def load_faculty(data_dir, limit=None, fac_limit=None):
-    print """
-    Loading faculty. Limit=%s.
-    """ % limit
+    print "Loading faculty."
 
-    #Get faculty ids from banner
-    faculty_gw_ids = get_faculty_gwids(data_dir, fac_limit=fac_limit)
+    l = FacultyLoader(data_dir, limit=limit, fac_limit=fac_limit)
+    return l.load()
 
-    #Create an RDFLib Graph
-    g = Graph(namespace_manager=ns_manager)
 
-    for result_num, result in enumerate(xml_result_generator(os.path.join(data_dir, "fis_faculty.xml"))):
-        if result["gwid"] in faculty_gw_ids:
-            p = Person(result["gwid"])
-            p.personal_statement = result["personal_statement"]
-            if valid_department_name(result["home_department"]) and valid_college_name(result["home_college"]):
-                p.home_department = Organization(result["home_department"])
-            p.scholarly_interest = result["research_areas"]
-            g += p.to_graph()
+class AcademicAppointmentLoader(Loader):
+    def __init__(self, data_dir, limit=None, fac_limit=None):
+        Loader.__init__(self, "fis_academic_appointment.xml", data_dir, has_fac=True, entity_class=AcademicAppointment,
+                        field_to_entity={"organization": Organization, "gw_id": Person},
+                        field_rename={"gw_id": "person"},
+                        limit=limit, fac_limit=fac_limit)
 
-        if limit and result_num >= limit-1:
-            break
+    def _use_result(self, result):
+        return valid_department_name(result["department"]) or valid_college_name(result["college"])
 
-    return g
+    def _process_result(self, result):
+        if valid_department_name(result["department"]):
+            result["organization"] = result["department"]
+        #Else, if College name, then College
+        else:
+            result["organization"] = result["college"]
 
 
 def load_academic_appointment(data_dir, limit=None, fac_limit=None):
-    print "Loading academic appointments. Limit is %s." % limit
+    print "Loading academic appointments."
 
-    #Get faculty ids from banner
-    faculty_gw_ids = get_faculty_gwids(data_dir, fac_limit=fac_limit)
+    l = AcademicAppointmentLoader(data_dir, limit=limit, fac_limit=fac_limit)
+    return l.load()
 
-    #Create an RDFLib Graph
-    g = Graph(namespace_manager=ns_manager)
 
-    for result_num, result in enumerate(xml_result_generator(os.path.join(data_dir, "fis_academic_appointment.xml"))):
-        if result["gwid"] in faculty_gw_ids:
-            p = Person(result["gwid"])
+class AdminAppointmentLoader(Loader):
+    def __init__(self, data_dir, limit=None, fac_limit=None):
+        Loader.__init__(self, "fis_admin_appointment.xml", data_dir, has_fac=True, entity_class=AdminAppointment,
+                        field_to_entity={"organization": Organization, "gw_id": Person},
+                        field_rename={"gw_id": "person"},
+                        limit=limit, fac_limit=fac_limit)
+        self.gwu = Organization(GWU, organization_type="University", is_gw=True)
 
-            #Assuming that departments and colleges already created when
-            #faculty loaded
-            o = None
-            #If Department name, then Department
-            if valid_department_name(result["department"]):
-                o = Organization(result["department"])
-            #Else, if College name, then College
-            elif valid_college_name(result["college"]):
-                o = Organization(result["college"])
+    def _addl_entities(self):
+        return [self.gwu]
 
-            #Skip if no department or college:
-            if o:
-                a = AcademicAppointment(p, o, result["rank"])
-                a.title = result["title"]
-                a.start_term = result["start_term"]
-                a.end_term = result["end_term"]
-                g += a.to_graph()
+    def _use_result(self, result):
+        return valid_department_name(result["department"]) or valid_college_name(result["college"])
 
-        if limit and result_num >= limit-1:
-            break
-
-    return g
+    def _process_result(self, result):
+        #If Department name, then Department
+        if valid_department_name(result["department"]):
+            result["organization"] = result["department"]
+        #Else, if College name, then College
+        elif valid_college_name(result["college"]):
+            result["organization"] = result["college"]
+        #Else GWU
+        else:
+            result["organization"] = GWU
 
 
 def load_admin_appointment(data_dir, limit=None, fac_limit=None):
-    print "Loading admin appointments. Limit is %s." % limit
+    print "Loading admin appointments."
 
-    #Get faculty ids from banner
-    faculty_gw_ids = get_faculty_gwids(data_dir, fac_limit=fac_limit)
-
-    #Create an RDFLib Graph
-    g = Graph(namespace_manager=ns_manager)
-
-    #Create an entry for GWU
-    gwu = Organization(GWU, organization_type="University", is_gw=True)
-    g += gwu.to_graph()
-
-    for result_num, result in enumerate(xml_result_generator(os.path.join(data_dir, "fis_admin_appointment.xml"))):
-        if result["gwid"] in faculty_gw_ids:
-            p = Person(result["gwid"])
-
-            #Assuming that departments and colleges already created when
-            #faculty loaded
-            #If Department name, then Department
-            if valid_department_name(result["department"]):
-                o = Organization(result["department"])
-            #Else, if College name, then College
-            elif valid_college_name(result["college"]):
-                o = Organization(result["college"])
-            #Else GWU
-            else:
-                o = gwu
-
-            a = AdminAppointment(p, o, result["rank"])
-            a.title = result["title"]
-            a.start_term = result["start_term"]
-            a.end_term = result["end_term"]
-            g += a.to_graph()
-
-        if limit and result_num >= limit-1:
-            break
-
-    return g
+    l = AdminAppointmentLoader(data_dir, limit=limit, fac_limit=fac_limit)
+    return l.load()
 
 
 def load_research(data_dir, limit=None, contribution_type_limit=None,
@@ -330,156 +399,64 @@ def load_research(data_dir, limit=None, contribution_type_limit=None,
     return g
 
 
-def load_education(data_dir, limit=None, degree_types=None, degree_type_limit=None, fac_limit=None):
-    print "Loading education. Limit is %s. Degree types is %s. Degree type limit is %s" % (
-        limit, degree_types, degree_type_limit)
+def load_degree_education(data_dir, limit=None, fac_limit=None):
+    print "Loading degree education."
 
-    #Get faculty ids from banner
-    faculty_gw_ids = get_faculty_gwids(data_dir, fac_limit=fac_limit)
+    l = Loader("fis_degree_education.xml", data_dir, has_fac=True, entity_class=DegreeEducation,
+               field_to_entity={"institution": Organization, "gw_id": Person},
+               field_rename={"institution": "organization", "gw_id": "person"},
+               add_entities_from_fields=["organization"],
+               limit=limit, fac_limit=fac_limit)
+    return l.load()
 
-    #Create an RDFLib Graph
-    g = Graph(namespace_manager=ns_manager)
 
-    ws = XlWrapper(os.path.join(data_dir, "education.xlsx"))
-    #Skip header row
-    row_num = 1
-    degree_type_count = 0
-    while (row_num < (limit or ws.nrows)
-           and (degree_type_limit is None or degree_type_count < degree_type_limit)):
-        #Person stub
-        gw_id = strip_gw_prefix(ws.cell_value(row_num, "Faculty ID"))
-        if gw_id in faculty_gw_ids:
-            p = Person(gw_id)
+def load_non_degree_education(data_dir, limit=None, fac_limit=None):
+    print "Loading non-degree education."
 
-            org_name = ws.cell_value(row_num, "Institution")
-            #Skip rows with blank organizations
-            if org_name:
-                o = Organization(org_name)
-                g += o.to_graph()
-
-                d = None
-                #Degree Type CD disappeared from spreadsheet so using Degree Type.
-                degree_type = ws.cell_value(row_num, "Degree Type")
-                degree_name = ws.cell_value(row_num, "Degree")
-                program = ws.cell_value(row_num, "Prgram")
-                #Degree types that result in degrees
-                if degree_type in (
-                    "Undergraduate",
-                    "Graduate",
-                    "Doctoral"
-                ):
-
-                    d = DegreeEducation(p, o, degree_name)
-                    d.major = ws.cell_value(row_num, "Major")
-                    d.program = program
-                #Otherwise, non-degree education
-                elif degree_type in (
-                    "Post Doctoral",
-                    "Post Graduate",
-                    "Clinical"
-                ):
-                    d = NonDegreeEducation(p, o, degree_name, program)
-                    d.degree = degree_name
-                #Not handling GW_DEGREE_TYPE_CD5 = Other
-                if d and (degree_types is None or degree_type in degree_types):
-                    d.start_term = ws.cell_value(row_num, "Start Term")
-                    d.end_term = ws.cell_value(row_num, "End Term")
-                    g += d.to_graph()
-                    degree_type_count += 1
-
-        row_num += 1
-    return g
+    l = Loader("fis_non_degree_education.xml", data_dir, has_fac=True, entity_class=NonDegreeEducation,
+               field_to_entity={"institution": Organization, "gw_id": Person},
+               field_rename={"institution": "organization", "gw_id": "person"},
+               add_entities_from_fields=["organization"],
+               limit=limit, fac_limit=fac_limit)
+    return l.load()
 
 
 def load_courses(data_dir, limit=None, fac_limit=None):
-    print "Loading courses taught. Limit is %s." % limit
+    print "Loading courses taught."
 
-    #Get faculty ids from banner
-    faculty_gw_ids = get_faculty_gwids(data_dir, fac_limit=fac_limit)
-
-    #Create an RDFLib Graph
-    g = Graph(namespace_manager=ns_manager)
-
-    ws = XlWrapper(os.path.join(data_dir, "Course Taught.xlsx"))
-    #Skip header row
-    row_num = 1
-    while row_num < (limit or ws.nrows):
-        created_by = ws.cell_value(row_num, "Created By")
-        #Skip everything not created by Interface.
-        #If not created by Interface, then manually entered.
-        if created_by == "Interface":
-            #Person stub
-            gw_id = strip_gw_prefix(ws.cell_value(row_num, "Faculty ID"))
-            if gw_id in faculty_gw_ids:
-                p = Person(gw_id)
-
-                course_id = ws.cell_value(row_num, "Course ID")
-                subject_id = ws.cell_value(row_num, "Subject ID")
-                start_term = ws.cell_value(row_num, "Start Term")
-                c = Course(p, course_id, subject_id, start_term)
-                c.course_title = ws.cell_value(row_num, "Course Title")
-                g += c.to_graph()
-
-        row_num += 1
-
-    return g
+    l = BasicLoader("fis_courses.xml", data_dir, entity_class=Course,
+                    limit=limit, fac_limit=fac_limit)
+    return l.load()
 
 
-def load_service(data_dir, limit=None, service_type_limit=None, service_group_codes=None, fac_limit=None):
-    print "Loading service. Limit is %s. Service type limit is %s. Service group codes is %s." \
-          % (limit, service_type_limit, service_group_codes)
+def load_awards(data_dir, limit=None, fac_limit=None):
+    print "Loading awards."
 
-    #Get faculty ids from banner
-    faculty_gw_ids = get_faculty_gwids(data_dir, fac_limit=fac_limit)
+    l = BasicLoader("fis_awards.xml", data_dir, entity_class=Award,
+                    limit=limit, fac_limit=fac_limit)
+    return l.load()
 
-    #Create an RDFLib Graph
-    g = Graph(namespace_manager=ns_manager)
 
-    ws = XlWrapper(os.path.join(data_dir, "Service.xlsx"))
-    #Skip header row
-    row_num = 1
-    service_type_count = 0
-    while ((row_num < (limit or ws.nrows))
-           and (service_type_limit is None or service_type_count < service_type_limit)):
-        #Person stub
-        gw_id = strip_gw_prefix(ws.cell_value(row_num, "Faculty ID"))
-        if gw_id in faculty_gw_ids:
-            p = Person(gw_id)
+def load_professional_memberships(data_dir, limit=None, fac_limit=None):
+    print "Loading professional memberships."
 
-            service_group_code = ws.cell_value(row_num, "Service Group CD(Headings)")
-            service_name = ws.cell_value(row_num, "Serviec Name")
-            title = ws.cell_value(row_num, "Title")
-            if service_group_codes is None or service_group_code in service_group_codes:
-                r = None
-                o = None
-                position = ws.cell_value(row_num, "Position")
-                if service_group_code == "LIT_PROFESSIONAL_MEMBERSHIP":
-                    if service_name and position:
-                        o = Organization(service_name)
-                        g += o.to_graph()
+    l = BasicLoader("fis_prof_memberships.xml", data_dir, entity_class=ProfessionalMembership,
+                    limit=limit, fac_limit=fac_limit)
+    return l.load()
 
-                        r = ProfessionalMembership(p, o, position)
-                elif service_group_code == "LIT_EDITORIAL_SERVICE":
-                    if service_name and position:
-                        r = Reviewership(p, service_name, position)
-                elif service_group_code == "LIT_AWARD":
-                    if title:
-                        if service_name:
-                            #There seems to contain numerous values that are not organizations.
-                            o = Organization(service_name)
-                            g += o.to_graph()
-                    r = Award(p, o, title)
-                elif service_group_code == "LIT_PRESENTATION":
-                    if title and service_name:
-                        r = Presentation(p, title, service_name)
 
-                if r:
-                    r.contribution_start_year = ws.cell_value(row_num, "Contribution Start Year")
-                    r.contribution_start_month = ws.cell_value(row_num, "Contribution Start Month")
-                    r.contribution_end_year = ws.cell_value(row_num, "Contribution End Year")
-                    r.contribution_end_month = ws.cell_value(row_num, "Contribution End Month")
-                    g += r.to_graph()
-                    service_type_count += 1
-        row_num += 1
+def load_reviewerships(data_dir, limit=None, fac_limit=None):
+    print "Loading reviewerships."
 
-    return g
+    l = BasicLoader("fis_reviewer.xml", data_dir, entity_class=Reviewership,
+                    limit=limit, fac_limit=fac_limit)
+    return l.load()
+
+
+def load_presentations(data_dir, limit=None, fac_limit=None):
+    print "Loading presentations."
+
+    l = BasicLoader("fis_presentations.xml", data_dir, entity_class=Presentation,
+                    limit=limit, fac_limit=fac_limit)
+    return l.load()
+
