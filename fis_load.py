@@ -21,13 +21,13 @@ def get_department_names(data_dir):
 
 
 def valid_department_name(name):
-    if name and name not in ("No Department","University-level Dept"):
+    if name and name not in ("No Department", "University-level Dept"):
         return True
     return False
 
 
 def valid_college_name(name):
-    if name and name not in ("University","No College Designated"):
+    if name and name not in ("University", "No College Designated"):
         return True
     return False
 
@@ -65,8 +65,8 @@ class Loader():
         for result_num, result in enumerate(xml_result_generator(os.path.join(self.data_dir, self.filename))):
             #Check the _use_result function
             if (self._use_result(result)
-                #Optionally limit by faculty ids
-                and (self.fac_gw_ids is None or result["gw_id"] in self.fac_gw_ids)):
+                    #Optionally limit by faculty ids
+                    and (self.fac_gw_ids is None or result["gw_id"] in self.fac_gw_ids)):
                 #Optionally process the result to change values
                 self._process_result(result)
 
@@ -122,7 +122,7 @@ class BasicLoader(Loader):
     The Organization entity is also added to the graph.
     """
 
-    def __init__(self, filename, data_dir, entity_class=None,
+    def __init__(self, filename, data_dir, entity_class,
                  limit=None, fac_limit=None):
         Loader.__init__(self, filename, data_dir, has_fac=True, entity_class=entity_class,
                         field_to_entity={"gw_id": Person, "organization": Organization},
@@ -152,7 +152,7 @@ class DepartmentLoader(Loader):
 def load_departments(data_dir, limit=None):
     print "Loading departments."
 
-    l = DepartmentLoader(data_dir)
+    l = DepartmentLoader(data_dir, limit=limit)
     return l.load()
 
 
@@ -232,173 +232,6 @@ def load_admin_appointment(data_dir, limit=None, fac_limit=None):
     return l.load()
 
 
-def load_research(data_dir, limit=None, contribution_type_limit=None,
-                  research_group_codes=None, contribution_type_codes=None, fac_limit=None):
-    print """
-    Loading research. Limit is %s. Contribution type limit is %s. Research group codes is %s.
-    Contribution types codes is %s.
-    """ % (limit, contribution_type_limit, research_group_codes, contribution_type_codes)
-
-    #Get faculty ids from banner
-    faculty_gw_ids = get_faculty_gwids(data_dir, fac_limit=fac_limit)
-
-    #Create an RDFLib Graph
-    g = Graph(namespace_manager=ns_manager)
-
-    ws = XlWrapper(os.path.join(data_dir, "Research.xlsx"))
-    #Skip header row
-    row_num = 1
-    contribution_type_count = 0
-    while ((row_num < (limit or ws.nrows))
-           and (contribution_type_limit is None or contribution_type_count < contribution_type_limit)):
-        #Person stub
-        gw_id = strip_gw_prefix(ws.cell_value(row_num, "Faculty ID"))
-        if gw_id in faculty_gw_ids:
-            p = Person(gw_id)
-
-            title = ws.cell_value(row_num, "Title")
-            research_group_code = ws.cell_value(row_num, "Research Group CD(Headings)")
-            contribution_type_code = ws.cell_value(row_num, "Contribution Type CD")
-            contribution_start_year = ws.cell_value(row_num, "Contribution Start Year")
-            contribution_start_month = ws.cell_value(row_num, "Contribution Start Month")
-            name = ws.cell_value(row_num, "Name")
-            if ((research_group_codes is None or research_group_code in research_group_codes)
-                    and (contribution_type_codes is None or contribution_type_code in contribution_type_codes)):
-                r = None
-                #Book
-                if research_group_code == "LIT_BOOK" and title:
-                    r = Book(title, p)
-                    if name:
-                        o = Organization(name)
-                        g += o.to_graph()
-                        r.publisher = o
-                #Report
-                elif (research_group_code == "LIT_PUBLICATION" and contribution_type_code in (
-                      #Report
-                      "GW_RESEARCH_TYPE_CD5",
-                      #Policy brief
-                      "GW_RESEARCH_TYPE_CD68", ) and title):
-                    r = Report(title, p)
-                    if name:
-                        o = Organization(name)
-                        g += o.to_graph()
-                        r.distributor = o
-                #Article
-                elif (research_group_code == "LIT_PUBLICATION" and contribution_type_code in (
-                      #Essay
-                      "GW_RESEARCH_TYPE_CD2",
-                      #Non-refereed article
-                      "GW_RESEARCH_TYPE_CD4") and title):
-                    r = Article(title, p)
-                    if name:
-                        r.publication_venue_name = name
-                #Academic article
-                elif (research_group_code == "LIT_PUBLICATION" and contribution_type_code in (
-                      #Refereed article
-                      "GW_RESEARCH_TYPE_CD1",
-                      #Other
-                      "GW_RESEARCH_TYPE_CD8",
-                      #Invited article
-                      "GW_RESEARCH_TYPE_CD67",
-                      #Law review and journal
-                      "GW_RESEARCH_TYPE_CD74") and title):
-                    r = AcademicArticle(title, p)
-                    if name:
-                        r.publication_venue_name = name
-                #Article abstract
-                elif (research_group_code == "LIT_PUBLICATION" and
-                        contribution_type_code in (
-                            #Abstract
-                            "GW_RESEARCH_TYPE_CD88",) and title):
-                    r = ArticleAbstract(title, p)
-                    if name:
-                        r.publication_venue_name = name
-                #Review
-                elif (research_group_code == "LIT_PUBLICATION" and
-                        contribution_type_code in (
-                            #Critique and review
-                            "GW_RESEARCH_TYPE_CD7",
-                            #Book review
-                            "GW_RESEARCH_TYPE_CD75",) and title):
-                    r = Review(title, p)
-                    if name:
-                        r.publication_venue_name = name
-                #Reference article
-                elif (research_group_code == "LIT_PUBLICATION" and
-                        contribution_type_code in (
-                            #Dictionary entry
-                            "GW_RESEARCH_TYPE_CD86",
-                            #Encyclopedia entry
-                            "GW_RESEARCH_TYPE_CD87",) and title):
-                    r = ReferenceArticle(title, p)
-                    if name:
-                        r.publication_venue_name = name
-                #Letter
-                elif (research_group_code == "LIT_PUBLICATION" and
-                        contribution_type_code in (
-                            #Letter
-                            "GW_RESEARCH_TYPE_CD89",) and title):
-                    r = Letter(title, p)
-                    if name:
-                        r.publication_venue_name = name
-                #Testimony
-                elif (research_group_code == "LIT_PUBLICATION" and
-                        contribution_type_code in (
-                            #Govt. Testimony
-                            "GW_RESEARCH_TYPE_CD76",) and title and name):
-                    r = Testimony(p, title, name)
-                #Chapter
-                elif research_group_code == "LIT_CHAPTER" and title:
-                    r = Chapter(title, p)
-                    if name:
-                        r.publication_venue_name = name
-                #Patent
-                elif research_group_code == "LIT_PATENT":
-                    patent_status_code = ws.cell_value(row_num, "Patent Status CD")
-                    #Only accepted patents.  Submitted, pending, other, or blank are ignored.
-                    if patent_status_code == "GW_PATENT_STATUS_CD1":
-                        r = Patent(title, p)
-                        r.patent = ws.cell_value(row_num, "Patent ID")
-                #Grant
-                elif research_group_code == "LIT_GRANT":
-                    grant_status_code = ws.cell_value(row_num, "Grant Status CD")
-                    #Awarded or closed (not proposed or rejected)
-                    if grant_status_code in ("GW_GRANT_STATUS_CD3", "GW_GRANT_STATUS_CD5"):
-                        grant_role_code = ws.cell_value(row_num, "Grant Role CD")
-                        #Skip if no grant_role_code
-                        if grant_role_code:
-                            r = Grant(title, grant_role_code, p, contribution_start_year, contribution_start_month)
-                            r.award_amount = ws.cell_value(row_num, "Award Amount")
-                            award_begin_date = ws.cell_value(row_num, "Award Begin Date")
-                            if award_begin_date:
-                                (r.award_begin_year, r.award_begin_month, r.award_begin_day,
-                                 hour, minute, nearest_second) = xlrd.xldate_as_tuple(award_begin_date, ws.datemode)
-                            award_end_date = ws.cell_value(row_num, "Award End Date")
-                            if award_end_date:
-                                (r.award_end_year, r.award_end_month, r.award_end_day,
-                                 hour, minute, nearest_second) = xlrd.xldate_as_tuple(award_end_date, ws.datemode)
-                            name = ws.cell_value(row_num, "Name")
-                            if name:
-                                o = Organization(name)
-                                g += o.to_graph()
-                                r.awarded_by = o
-                #Conference abstract
-                elif (research_group_code == "LIT_CONFERENCE" and contribution_type_code in (
-                        #Abstract
-                        "GW_RESEARCH_TYPE_CD90",) and title):
-                        r = ConferenceAbstract(title, p, name)
-
-                if r:
-                    r.contribution_start_year = contribution_start_year
-                    r.contribution_start_month = contribution_start_month
-                    r.additional_details = ws.cell_value(row_num, "Additional Details")
-                    g += r.to_graph()
-                    contribution_type_count += 1
-        row_num += 1
-
-    return g
-
-
 def load_degree_education(data_dir, limit=None, fac_limit=None):
     print "Loading degree education."
 
@@ -460,3 +293,102 @@ def load_presentations(data_dir, limit=None, fac_limit=None):
                     limit=limit, fac_limit=fac_limit)
     return l.load()
 
+
+def load_books(data_dir, limit=None, fac_limit=None):
+    print "Loading books."
+
+    l = Loader("fis_books.xml", data_dir, has_fac=True, entity_class=Book,
+               field_to_entity={"gw_id": Person, "publisher": Organization},
+               field_rename={"gw_id": "person"}, add_entities_from_fields=["publisher"],
+               limit=limit, fac_limit=fac_limit)
+    return l.load()
+
+
+def load_reports(data_dir, limit=None, fac_limit=None):
+    print "Loading reports."
+
+    l = Loader("fis_reports.xml", data_dir, has_fac=True, entity_class=Book,
+               field_to_entity={"gw_id": Person, "distributor": Organization},
+               field_rename={"gw_id": "person"}, add_entities_from_fields=["distributor"],
+               limit=limit, fac_limit=fac_limit)
+    return l.load()
+
+
+def load_articles(data_dir, limit=None, fac_limit=None):
+    print "Loading articles"
+
+    l = BasicLoader("fis_articles.xml", data_dir, Article, limit=limit, fac_limit=fac_limit)
+    return l.load()
+
+
+def load_academic_articles(data_dir, limit=None, fac_limit=None):
+    print "Loading academic articles"
+
+    l = BasicLoader("fis_acad_articles.xml", data_dir, AcademicArticle, limit=limit, fac_limit=fac_limit)
+    return l.load()
+
+
+def load_article_abstracts(data_dir, limit=None, fac_limit=None):
+    print "Loading article abstracts"
+
+    l = BasicLoader("fis_article_abstracts.xml", data_dir, ArticleAbstract, limit=limit, fac_limit=fac_limit)
+    return l.load()
+
+
+def load_reviews(data_dir, limit=None, fac_limit=None):
+    print "Loading reviews"
+
+    l = BasicLoader("fis_reviews.xml", data_dir, Review, limit=limit, fac_limit=fac_limit)
+    return l.load()
+
+
+def load_reference_articles(data_dir, limit=None, fac_limit=None):
+    print "Loading reference articles"
+
+    l = BasicLoader("fis_ref_articles.xml", data_dir, ReferenceArticle, limit=limit, fac_limit=fac_limit)
+    return l.load()
+
+
+def load_letters(data_dir, limit=None, fac_limit=None):
+    print "Loading letters"
+
+    l = BasicLoader("fis_letters.xml", data_dir, Letter, limit=limit, fac_limit=fac_limit)
+    return l.load()
+
+
+def load_testimony(data_dir, limit=None, fac_limit=None):
+    print "Loading testimony"
+
+    l = BasicLoader("fis_testimony.xml", data_dir, Testimony, limit=limit, fac_limit=fac_limit)
+    return l.load()
+
+
+def load_chapters(data_dir, limit=None, fac_limit=None):
+    print "Loading chapters"
+
+    l = BasicLoader("fis_chapters.xml", data_dir, Chapter, limit=limit, fac_limit=fac_limit)
+    return l.load()
+
+
+def load_conference_abstracts(data_dir, limit=None, fac_limit=None):
+    print "Loading conference abstracts"
+
+    l = BasicLoader("fis_conf_abstracts.xml", data_dir, ConferenceAbstract, limit=limit, fac_limit=fac_limit)
+    return l.load()
+
+
+def load_patents(data_dir, limit=None, fac_limit=None):
+    print "Loading patents"
+
+    l = BasicLoader("fis_patents.xml", data_dir, Patent, limit=limit, fac_limit=fac_limit)
+    return l.load()
+
+def load_grants(data_dir, limit=None, fac_limit=None):
+    print "Loading grants."
+
+    l = Loader("fis_grants.xml", data_dir, has_fac=True, entity_class=Grant,
+               field_to_entity={"awarded_by": Organization, "gw_id": Person},
+               field_rename={"gw_id": "person"},
+               add_entities_from_fields=["awarded_by"],
+               limit=limit, fac_limit=fac_limit)
+    return l.load()

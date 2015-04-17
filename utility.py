@@ -206,6 +206,7 @@ def xml_result_generator(filepath):
             else:
                 value = field_elem.text
             result[field_elem.get("name")] = value
+        row_elem.clear()
         yield result
 
 

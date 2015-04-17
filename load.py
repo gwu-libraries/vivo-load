@@ -6,6 +6,7 @@ import fis_load
 import banner_load
 from collections import OrderedDict
 from utility import remove_extra_args
+import time
 
 
 def process_graph(g, local_args):
@@ -55,10 +56,11 @@ if __name__ == '__main__':
                              default_split_size)
     default_delete_split_size = 2500
     parser.add_argument("--delete-split-size", type=int, default=default_delete_split_size,
-                        help="Maximum number of triples to include in a single delete. Default is %s" % default_delete_split_size)
+                        help="Maximum number of triples to include in a single delete. "
+                             "Default is %s" % default_delete_split_size)
     default_data_dir = "./data"
     parser.add_argument("--data-dir", default=default_data_dir, dest="data_dir",
-                        help="Directory containing the xlsx. Default is %s" % default_data_dir)
+                        help="Directory containing the data files. Default is %s" % default_data_dir)
     default_htdocs_dir = "/usr/local/apache2/htdocs"
     parser.add_argument("--htdocs-dir", default=default_htdocs_dir, dest="htdocs_dir",
                         help="Directory from which html documents are served. Default is %s." % default_htdocs_dir)
@@ -99,9 +101,20 @@ if __name__ == '__main__':
         ("fis_awards", fis_load.load_awards),
         ("fis_prof_memberships", fis_load.load_professional_memberships),
         ("fis_reviewers", fis_load.load_reviewerships),
-        ("fis_presentations", fis_load.load_presentations)
-        #TODO:  Rest of service and research
-
+        ("fis_presentations", fis_load.load_presentations),
+        ("fis_books", fis_load.load_books),
+        ("fis_reports", fis_load.load_reports),
+        ("fis_articles", fis_load.load_articles),
+        ("fis_acad_articles", fis_load.load_academic_articles),
+        ("fis_article_abstracts", fis_load.load_article_abstracts),
+        ("fis_reviews", fis_load.load_reviews),
+        ("fis_ref_articles", fis_load.load_reference_articles),
+        ("fis_letters", fis_load.load_letters),
+        ("fis_testimony", fis_load.load_testimony),
+        ("fis_chapters", fis_load.load_chapters),
+        ("fis_conf_abstracts", fis_load.load_conference_abstracts),
+        ("fis_patents", fis_load.load_patents),
+        ("fis_grants", fis_load.load_grants)
     ])
 
     data_types = list(data_type_map.keys())
@@ -120,6 +133,8 @@ if __name__ == '__main__':
         #Replace data types with ordered list of all data types
         args.data_type = data_type_map.keys()
 
+    start_time = time.time()
+
     #Load each data type
     for data_type in args.data_type:
         func_args = vars(args).copy()
@@ -127,5 +142,7 @@ if __name__ == '__main__':
         func = data_type_map[data_type]
         #Limit to actual arguments
         remove_extra_args(func_args, func)
-        g = func(**func_args)
-        process_graph(g, args)
+        graph = func(**func_args)
+        process_graph(graph, args)
+
+    print "Done in %.2f seconds." % (time.time() - start_time)

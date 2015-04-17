@@ -23,7 +23,7 @@ class Person():
 
         ##Research areas
         if self.research_areas:
-            research_area_uri = D[to_hash_identifier(PREFIX_RESEARCH_AREA, [self.research_areas,])]
+            research_area_uri = D[to_hash_identifier(PREFIX_RESEARCH_AREA, [self.research_areas, ])]
             g.add((research_area_uri, RDF.type, SKOS.concept))
             g.add((research_area_uri, RDFS.label, Literal(self.research_areas)))
             g.add((self.uri, VIVO.hasResearchArea, research_area_uri))
@@ -117,13 +117,13 @@ class AdminAppointment(Appointment):
 
 class Document():
 
-    def __init__(self, title, person):
+    def __init__(self, person, title, start_year=None, start_month=None):
         self.title = title
         self.person = person
-        self.uri = D[to_hash_identifier(PREFIX_DOCUMENT, (person.uri, title, self._get_document_type()))]
+        self.start_year = start_year
+        self.start_month = start_month
 
-        self.contribution_start_year = None
-        self.contribution_start_month = None
+        self.uri = D[to_hash_identifier(PREFIX_DOCUMENT, (person.uri, title, self._get_document_type()))]
 
     def to_graph(self):
         #Create an RDFLib Graph
@@ -144,7 +144,7 @@ class Document():
         #Date
         date_uri = self.uri + "-date"
         g.add((self.uri, VIVO.dateTimeValue, date_uri))
-        add_date(date_uri, self.contribution_start_year, g, self.contribution_start_month)
+        add_date(date_uri, self.start_year, g, self.start_month)
 
         return g
 
@@ -154,10 +154,9 @@ class Document():
 
 class Book(Document):
 
-    def __init__(self, title, person):
-        Document.__init__(self, title, person)
-
-        self.publisher = None
+    def __init__(self, person, title, publisher=None, start_year=None):
+        Document.__init__(self, person, title, start_year=start_year)
+        self.publisher = publisher
 
     def _get_document_type(self):
         return BIBO.Book
@@ -174,10 +173,9 @@ class Book(Document):
 
 class Article(Document):
 
-    def __init__(self, title, person):
-        Document.__init__(self, title, person)
-
-        self.publication_venue_name = None
+    def __init__(self, person, title, start_year=None, start_month=None, publication_venue=None):
+        Document.__init__(self, person, title, start_year=start_year, start_month=start_month)
+        self.publication_venue = publication_venue
 
     def _get_document_type(self):
         return BIBO.Article
@@ -189,10 +187,11 @@ class Article(Document):
         g = Document.to_graph(self)
 
         #Publication venue
-        if self.publication_venue_name:
-            journal_uri = D[to_hash_identifier(PREFIX_JOURNAL, (self._get_publication_venue_type(), self.publication_venue_name,))]
+        if self.publication_venue:
+            journal_uri = D[to_hash_identifier(PREFIX_JOURNAL, (self._get_publication_venue_type(),
+                                                                self.publication_venue,))]
             g.add((journal_uri, RDF.type, self._get_publication_venue_type()))
-            g.add((journal_uri, RDFS.label, Literal(self.publication_venue_name)))
+            g.add((journal_uri, RDFS.label, Literal(self.publication_venue)))
             g.add((self.uri, VIVO.hasPublicationVenue, journal_uri))
 
         return g
@@ -243,10 +242,9 @@ class Chapter(Article):
 
 class Report(Document):
 
-    def __init__(self, title, person):
-        Document.__init__(self, title, person)
-
-        self.distributor = None
+    def __init__(self, person, title, start_year=None, start_month=None, distributor=None):
+        Document.__init__(self, person, title, start_year=start_year, start_month=start_month)
+        self.distributor = distributor
 
     def _get_document_type(self):
         return BIBO.Report
@@ -263,9 +261,8 @@ class Report(Document):
 
 class ConferenceAbstract(Document):
 
-    def __init__(self, title, person, conference):
-        Document.__init__(self, title, person)
-
+    def __init__(self, person, title, conference, start_year=None, start_month=None):
+        Document.__init__(self, person, title, start_year=start_year, start_month=start_month)
         self.conference = conference
 
     def _get_document_type(self):
@@ -285,14 +282,14 @@ class ConferenceAbstract(Document):
 
 class Patent():
 
-    def __init__(self, title, person):
+    def __init__(self, person, title, patent=None, start_year=None, start_month=None):
         self.title = title
         self.person = person
-        self.uri = D[to_hash_identifier(PREFIX_PATENT, (person.uri, title))]
+        self.start_year = start_year
+        self.start_month = start_month
+        self.patent = patent
 
-        self.contribution_start_year = None
-        self.contribution_start_month = None
-        self.patent = None
+        self.uri = D[to_hash_identifier(PREFIX_PATENT, (person.uri, title))]
 
     def to_graph(self):
         #Create an RDFLib Graph
@@ -314,29 +311,34 @@ class Patent():
         #Date
         date_uri = self.uri + "-date"
         g.add((self.uri, VIVO.dateTimeValue, date_uri))
-        add_date(date_uri, self.contribution_start_year, g, self.contribution_start_month)
+        add_date(date_uri, self.start_year, g, self.start_month)
 
         return g
 
 
 class Grant():
 
-    def __init__(self, title, grant_role_code, person, contribution_start_year=None, contribution_start_month=None):
+    def __init__(self, person, title, grant_role, start_year=None, start_month=None,
+                 award_amount=None, awarded_by=None,
+                 award_start_year=None, award_start_month=None, award_start_day=None,
+                 award_end_year=None, award_end_month=None, award_end_day=None):
         self.title = title
-        self.grant_role_code = grant_role_code
+        self.grant_role = grant_role
         self.person = person
-        #Using contribution start year, month to disambiguate grants, but not storing.
-        self.uri = D[to_hash_identifier(PREFIX_GRANT, (person.uri, title, grant_role_code,
-                                                       contribution_start_year, contribution_start_month))]
 
-        self.award_amount = None
-        self.award_begin_year = None
-        self.award_begin_month = None
-        self.award_begin_day = None
-        self.award_end_year = None
-        self.award_end_month = None
-        self.award_end_day = None
-        self.awarded_by = None
+        self.award_amount = award_amount
+        self.award_start_year = award_start_year
+        self.award_start_month = award_start_month
+        self.award_start_day = award_start_day
+        self.award_end_year = award_end_year
+        self.award_end_month = award_end_month
+        self.award_end_day = award_end_day
+        #Organization awarding the grant
+        self.awarded_by = awarded_by
+
+        #Using start year, month to disambiguate grants, but not storing.
+        self.uri = D[to_hash_identifier(PREFIX_GRANT, (person.uri, title, grant_role,
+                                                       start_year, start_month))]
 
     def to_graph(self):
         #Create an RDFLib Graph
@@ -354,12 +356,12 @@ class Grant():
         #Role
         role_uri = self.uri + "-role"
         g.add((role_uri, RDF.type, {
-            "GW_GRANT_ROLE_CD1": VIVO.PrincipalInvestigatorRole,
-            "GW_GRANT_ROLE_CD2": VIVO.CoPrincipalInvestigatorRole,
-            "GW_GRANT_ROLE_CD3": VIVO.ResearcherRole,
+            "PI": VIVO.PrincipalInvestigatorRole,
+            "Co-PI": VIVO.CoPrincipalInvestigatorRole,
+            "Member": VIVO.ResearcherRole,
             #Just role
-            "GW_GRANT_ROLE_CD4": OBO.BFO_0000023
-        }[self.grant_role_code]))
+            "Other": OBO.BFO_0000023
+        }[self.grant_role]))
         #Inheres in
         g.add((role_uri, OBO.RO_0000052, self.person.uri))
         g.add((role_uri, VIVO.relatedBy, self.uri))
@@ -370,10 +372,10 @@ class Grant():
         interval_end_uri = interval_uri + "-end"
         add_date_interval(interval_uri, self.uri, g,
                           interval_start_uri if add_date(interval_start_uri,
-                                                         self.award_begin_year,
+                                                         self.award_start_year,
                                                          g,
-                                                         self.award_begin_month,
-                                                         self.award_begin_day) else None,
+                                                         self.award_start_month,
+                                                         self.award_start_day) else None,
                           interval_end_uri if add_date(interval_end_uri,
                                                        self.award_end_year,
                                                        g,
@@ -489,7 +491,6 @@ class Course():
         self.course_id = course_id
         self.course = course
         self.uri = D[to_hash_identifier(PREFIX_TEACHER, (person.uri, self.course_id))]
-
 
     def to_graph(self):
         #Create an RDFLib Graph
@@ -704,8 +705,8 @@ class Presentation():
 
 class Testimony(Presentation):
 
-    def __init__(self, person, title, name):
-        Presentation.__init__(self, person, title, name)
+    def __init__(self, person, title, event, start_year=None, start_month=None):
+        Presentation.__init__(self, person, title, event, start_year=start_year, start_month=start_month)
 
     def _get_event_type(self):
         return BIBO.Hearing
