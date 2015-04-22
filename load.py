@@ -85,6 +85,8 @@ if __name__ == '__main__':
                         dest="non_fac_limit")
     parser.add_argument("--skip-appt", action="store_false", dest="load_appt",
                         help="Skip loading the academic appointment for the faculty. For b_acadappt only.")
+    parser.add_argument("--resume", action="store_true",
+                        help="Resume loading all starting with the provided data type.")
 
     #Map of label for data type to load function.
     data_type_map = OrderedDict([
@@ -126,12 +128,26 @@ if __name__ == '__main__':
     #Parse
     args = parser.parse_args()
 
-    #If all selected
-    if "all" in args.data_type:
+    #If all selected or resuming
+    if "all" in args.data_type or (args.resume and len(args.data_type) == 1):
         #Forcing skipping appt for b_acadappt
         args.load_appt = False
+
+    if "all" in args.data_type:
+        print "Loading all"
         #Replace data types with ordered list of all data types
         args.data_type = data_type_map.keys()
+
+    if args.resume and len(args.data_type) == 1:
+        resume_data_type = args.data_type[0]
+        print "Resuming with %s" % resume_data_type
+        args.data_type = []
+        found_resume_data_type = False
+        for data_type in data_type_map.keys():
+            if resume_data_type == data_type:
+                found_resume_data_type = True
+            if found_resume_data_type:
+                args.data_type.append(data_type)
 
     start_time = time.time()
 
