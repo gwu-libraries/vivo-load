@@ -34,7 +34,7 @@ def process_graph(g, local_args):
             sparql_load(g_add, local_args.htdocs_dir, local_args.endpoint, local_args.username, local_args.password,
                         split_size=local_args.split_size)
         if len(g_del) > 0:
-            sparql_delete(g_del, local_args.username, local_args.endpoint, local_args.password,
+            sparql_delete(g_del, local_args.endpoint, local_args.username, local_args.password,
                           split_size=local_args.delete_split_size)
 
     #Save to graphs archive directory
