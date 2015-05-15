@@ -1,5 +1,5 @@
-import os
 from banner_entity import *
+from utility import *
 import csv
 import codecs
 
@@ -27,67 +27,6 @@ import codecs
 # 30401 --> ['Uv Lib 3 Ft', 'Mc Lib 3 Ft', 'Uv Librarian 4FT', 'Uv Lib 4 Ft', 'Uv Lib 2 Ft', 'Uv Librarian 3 FT']
 # 01001 --> ['UV Librarian & Vice Provost']
 # 30501 --> ['Uv Lib 3 Ft', 'Uv Librarian 2 FT', 'Uv Librarian 3 FT', 'Mc Lib 2 Ft', 'Uv Lib 2 Ft', 'Uv Lib  Ft', 'Systems Librarian', 'Uv Lib 4 Ft', 'Librarian 2']
-
-pos_code_to_classes = {
-    "28101": "NonFacultyAcademic",
-    "28301": "NonFacultyAcademic",
-    "28302": "NonFacultyAcademic",
-    "28502": "NonFacultyAcademic",
-    "283R2": "NonFacultyAcademic",
-    "283R1": "NonFacultyAcademic",
-    "28102": "NonFacultyAcademic",
-    "19S01": "NonFacultyAcademic",
-    "28501": "NonFacultyAcademic",
-    "27401": "NonFacultyAcademic",
-    "289A1": "Postdoc",
-    "289A2": "Postdoc",
-    "307A1": "Librarian",
-    "30601": "Librarian",
-    "30602": "Librarian",
-    "30402": "Librarian",
-    "30401": "Librarian",
-    "01001": "Librarian",
-    "30501": "Librarian",
-}
-
-#Register banner dialect
-csv.register_dialect("banner", delimiter="|")
-
-
-def get_non_faculty_gwids(data_dir, non_fac_limit=None):
-    gwids = []
-    with codecs.open(os.path.join(data_dir, "vivo_emplappt.txt"), 'r', encoding="utf-8") as csv_file:
-        reader = csv.DictReader(csv_file, dialect="banner")
-        for row in reader:
-            if row["POSITION_CLASS"] in pos_code_to_classes:
-                gwids.append(row["EMPLOYEEID"])
-    demo_gwids = demographic_intersection(gwids, data_dir)
-    if non_fac_limit and len(demo_gwids) > non_fac_limit:
-        return demo_gwids[:non_fac_limit]
-    else:
-        return demo_gwids
-
-
-def get_faculty_gwids(data_dir, fac_limit=None):
-    gwids = set()
-    with codecs.open(os.path.join(data_dir, "vivo_acadappt.txt"), 'r', encoding="utf-8") as csv_file:
-        reader = csv.DictReader(csv_file, dialect="banner")
-        for row in reader:
-            gwids.add(row["EMPLOYEEID"])
-    demo_gwids = demographic_intersection(gwids, data_dir)
-    if fac_limit and len(demo_gwids) > fac_limit:
-        return demo_gwids[:fac_limit]
-    else:
-        return demo_gwids
-
-
-def demographic_intersection(gwids, data_dir):
-    demo_gwids = set()
-    with codecs.open(os.path.join(data_dir, "vivo_demographic.txt"), 'r', encoding="utf-8") as csv_file:
-        reader = csv.DictReader(csv_file, dialect="banner")
-        for row in reader:
-            demo_gwids.add(row["EMPLOYEEID"])
-    return list(demo_gwids.intersection(gwids))
 
 
 def print_position_code_to_name(data_dir):
@@ -309,7 +248,7 @@ def load_acadappt(data_dir, limit=None, load_appt=True, fac_limit=None):
     return g
 
 
-def load_courses(data_dir, limit=None, fac_limit=None):
+def load_courses(data_dir, limit=None, fac_limit=None, non_fac_limit=None):
     print """
     Loading courses. Limit=%s.
     """ % limit
@@ -318,7 +257,8 @@ def load_courses(data_dir, limit=None, fac_limit=None):
     #Create an RDFLib Graph
     g = Graph(namespace_manager=ns_manager)
 
-    #Get the faculty gwids
+    #Get the non-faculty and faculty gwids
+    non_faculty_gwids = get_non_faculty_gwids(data_dir, non_fac_limit=non_fac_limit)
     faculty_gwids = get_faculty_gwids(data_dir, fac_limit=fac_limit)
 
     #This file is supposed to be utf-8, but is not valid.
@@ -326,9 +266,8 @@ def load_courses(data_dir, limit=None, fac_limit=None):
         reader = csv.DictReader(csv_file, dialect="banner")
         for row_num, row in enumerate(reader):
             gw_id = row["EMPLOYEEID"]
-            if gw_id in faculty_gwids:
-                c = Course(Person(gw_id), row["COURSE_NBR"], row["SUBJECT"], row["TERM_CODE"])
-                c.course_title = row["COURSE_TITLE"]
+            if gw_id in faculty_gwids or gw_id in non_faculty_gwids:
+                c = Course(Person(gw_id), row["COURSE_NBR"], row["SUBJECT"], row["COURSE_TITLE"])
                 g += c.to_graph()
 
                 if limit and row_num >= limit-1:

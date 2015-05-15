@@ -176,15 +176,13 @@ class Organization():
 
 class Course():
     #"G10002741","625-25","LAW","200003","Fed Criminal Appellate Clinc","4","9",
-    def __init__(self, person, course_number, course_subject, start_term):
+    def __init__(self, person, course_number, course_subject, course_title):
         self.person = person
         self.course_number = course_number
         self.course_subject = course_subject
-        self.start_term = start_term
+        self.course_title = course_title
         self.uri = D[to_hash_identifier(PREFIX_TEACHER, (self.person.uri, self.course_number,
-                                                         self.course_subject, self.start_term))]
-
-        self.course_title = None
+                                                         self.course_subject))]
 
     def to_graph(self):
         #Create an RDFLib Graph
@@ -203,13 +201,5 @@ class Course():
                                       self.course_subject, self.course_number)
         g.add((course_uri, RDFS.label, Literal(course_name)))
         g.add((self.uri, OBO.BFO_0000054, course_uri))
-
-        #Interval
-        #Start and end are the same
-        interval_uri = self.uri + "-interval"
-        interval_start_uri = interval_uri + "-start"
-        add_date_interval(interval_uri, self.uri, g,
-                          interval_start_uri if add_season_date(interval_start_uri, self.start_term, g) else None,
-                          None)
 
         return g

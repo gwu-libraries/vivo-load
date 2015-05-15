@@ -82,6 +82,9 @@ class Appointment():
         #Create an RDFLib Graph
         g = Graph()
 
+        #Person type
+        g.add((self.person.uri, RDF.type, VIVO.FacultyMember))
+
         g.add((self.uri, RDF.type, self.appt_type))
         #Title otherwise rank
         g.add((self.uri, RDFS.label, Literal(self.title or self.rank)))

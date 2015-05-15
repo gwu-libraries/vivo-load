@@ -4,10 +4,11 @@ from rdflib import Literal, RDF, RDFS, XSD
 from namespace import *
 import re
 import xlrd
-from xml.dom.pulldom import START_ELEMENT, parse
 import inspect
 import codecs
 from lxml import etree
+import csv
+import os
 
 def num_to_str(num):
     """
@@ -218,3 +219,105 @@ def remove_extra_args(func_args, func):
     for key in list(func_args.keys()):
         if key not in arg_names:
             del func_args[key]
+
+
+def valid_department_name(name):
+    if name and name not in ("No Department", "University-level Dept"):
+        return True
+    return False
+
+
+def valid_college_name(name):
+    if name and name not in ("University", "No College Designated"):
+        return True
+    return False
+
+
+#Register banner dialect
+csv.register_dialect("banner", delimiter="|")
+
+#Map of banner position codes to VIVO classes
+pos_code_to_classes = {
+    "28101": "NonFacultyAcademic",
+    "28301": "NonFacultyAcademic",
+    "28302": "NonFacultyAcademic",
+    "28502": "NonFacultyAcademic",
+    "283R2": "NonFacultyAcademic",
+    "283R1": "NonFacultyAcademic",
+    "28102": "NonFacultyAcademic",
+    "19S01": "NonFacultyAcademic",
+    "28501": "NonFacultyAcademic",
+    "27401": "NonFacultyAcademic",
+    "289A1": "Postdoc",
+    "289A2": "Postdoc",
+    "307A1": "Librarian",
+    "30601": "Librarian",
+    "30602": "Librarian",
+    "30402": "Librarian",
+    "30401": "Librarian",
+    "01001": "Librarian",
+    "30501": "Librarian",
+}
+
+
+def demographic_intersection(gwids, data_dir):
+    """
+    Returns the intersection of a provided list of gwids and the gwids in banner
+    demographic data.
+    """
+    demo_gwids = set()
+    with codecs.open(os.path.join(data_dir, "vivo_demographic.txt"), 'r', encoding="utf-8") as csv_file:
+        reader = csv.DictReader(csv_file, dialect="banner")
+        for row in reader:
+            demo_gwids.add(row["EMPLOYEEID"])
+    return list(demo_gwids.intersection(gwids))
+
+
+def get_non_faculty_gwids(data_dir, non_fac_limit=None):
+    """
+    Returns the list of non-faculty gwids.
+
+    This is determined by taking the intersection of gwids in banner
+    demographic data and gwids in banner administrative appointment
+    data where the position has one of the selected position codes and
+    removing all faculty gwids.
+    """
+    empl_gwids = []
+    with codecs.open(os.path.join(data_dir, "vivo_emplappt.txt"), 'r', encoding="utf-8") as csv_file:
+        reader = csv.DictReader(csv_file, dialect="banner")
+        for row in reader:
+            if row["POSITION_CLASS"] in pos_code_to_classes:
+                empl_gwids.append(row["EMPLOYEEID"])
+    #Only gwids with demographic data
+    demo_gwids = demographic_intersection(empl_gwids, data_dir)
+    #Not faculty gwids
+    fac_gwids = get_faculty_gwids(data_dir)
+    gwids = [gw_id for gw_id in demo_gwids if gw_id not in fac_gwids]
+    if non_fac_limit and len(gwids) > non_fac_limit:
+        return gwids[:non_fac_limit]
+    else:
+        return gwids
+
+
+def get_faculty_gwids(data_dir, fac_limit=None):
+    """
+    Returns the list of faculty gwids.
+
+    This is determined by taking the intersection of gwids in banner
+    demographic data and the union of fis academic appointment and
+    administrative data.  (There are gwids for faculty in fis faculty
+    that have no appointments.)
+    """
+    gwids = set()
+    #fis faculty
+    for result in xml_result_generator(os.path.join(data_dir, "fis_academic_appointment.xml")):
+        if valid_department_name(result["department"]) or valid_college_name(result["college"]):
+            gwids.add(result["gw_id"])
+    for result in xml_result_generator(os.path.join(data_dir, "fis_admin_appointment.xml")):
+        if valid_department_name(result["department"]) or valid_college_name(result["college"]):
+            gwids.add(result["gw_id"])
+    demo_gwids = demographic_intersection(gwids, data_dir)
+    if fac_limit and len(demo_gwids) > fac_limit:
+        return demo_gwids[:fac_limit]
+    else:
+        return demo_gwids

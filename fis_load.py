@@ -1,35 +1,8 @@
-import os
 from fis_entity import *
-from banner_load import get_faculty_gwids
-import codecs
-import csv
+from utility import get_faculty_gwids, valid_college_name, valid_department_name
+import os
 
 GWU = "The George Washington University"
-
-
-def get_department_names(data_dir):
-    department_names = []
-    with codecs.open(os.path.join(data_dir, "fis_departments.txt"), 'r', encoding="utf-8") as csv_file:
-        reader = csv.reader(csv_file, delimiter="\t")
-
-        for row_num, row in enumerate(reader):
-            #Skip header
-            if row_num == 0:
-                continue
-            department_names.append(row[1])
-    return department_names
-
-
-def valid_department_name(name):
-    if name and name not in ("No Department", "University-level Dept"):
-        return True
-    return False
-
-
-def valid_college_name(name):
-    if name and name not in ("University", "No College Designated"):
-        return True
-    return False
 
 
 class Loader():
@@ -52,7 +25,7 @@ class Loader():
         #Create an RDFLib Graph
         self.g = Graph(namespace_manager=ns_manager)
 
-        #Get faculty ids from banner
+        #Get faculty ids
         self.fac_gw_ids = None
         if has_fac:
             self.fac_gw_ids = get_faculty_gwids(data_dir, fac_limit=fac_limit)
