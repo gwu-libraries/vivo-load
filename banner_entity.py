@@ -1,6 +1,7 @@
 from utility import *
 from rdflib import Graph
 from prefixes import *
+import re
 
 
 class Person():
@@ -101,9 +102,11 @@ class NonFaculty():
 
         #Position
         if self.title:
+            #Remove level from librarian titles, e.g., Uv Librarian 4 FT
+            clean_title = re.sub(r'(Lib(rarian)?) [0-4]', r'\1', self.title)
             appt_uri = D[to_hash_identifier(PREFIX_APPOINTMENT, (self.uri, self.title))]
             g.add((appt_uri, RDF.type, VIVO.NonFacultyAcademicPosition))
-            g.add((appt_uri, RDFS.label, Literal(self.title)))
+            g.add((appt_uri, RDFS.label, Literal(clean_title)))
             #Related by
             g.add((self.uri, VIVO.relatedBy, appt_uri))
             g.add((self.home_organization.uri, VIVO.relatedBy, appt_uri))
