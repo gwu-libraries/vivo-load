@@ -321,3 +321,11 @@ def get_faculty_gwids(data_dir, fac_limit=None):
         return demo_gwids[:fac_limit]
     else:
         return demo_gwids
+
+
+def format_phone_number(phone_number):
+    if phone_number:
+        clean_phone_number = phone_number.replace("-", "").replace(" ", "")
+        if len(clean_phone_number) == 10:
+            return "%s-%s-%s" % (clean_phone_number[0:3], clean_phone_number[3:6], clean_phone_number[6:])
+    return None

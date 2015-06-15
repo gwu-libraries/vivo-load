@@ -59,13 +59,14 @@ class Person():
                 g.add((vcard_email_uri, VCARD.email, Literal(self.email)))
 
             #Phone vcard
-            if self.phone:
+            format_phone = format_phone_number(self.phone)
+            if format_phone:
                 vcard_phone_uri = self.uri + "-vcard-phone"
                 g.add((vcard_phone_uri, RDF.type, VCARD.Telephone))
                 g.add((vcard_phone_uri, RDF.type, VCARD.Work))
                 g.add((vcard_phone_uri, RDF.type, VCARD.Voice))
                 g.add((vcard_uri, VCARD.hasTelephone, vcard_phone_uri))
-                g.add((vcard_phone_uri, VCARD.telephone, Literal(self.phone)))
+                g.add((vcard_phone_uri, VCARD.telephone, Literal(format_phone)))
 
             #Address vcard
             if self.address1 and self.city and self.zip:
