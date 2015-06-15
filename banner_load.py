@@ -140,7 +140,7 @@ def load_orgn(data_dir, limit=None):
         for row in reader:
             org_cd = row["ORG_CODE"]
             if org_cd in org_cds:
-                o = Organization(org_cd)
+                o = Organization(org_cd, organization_type="Department")
                 o.name = row["ORG_TITLE"]
                 g += o.to_graph()
 

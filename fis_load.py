@@ -118,7 +118,7 @@ class DepartmentLoader(Loader):
         #College
         c = Organization(result["college"], organization_type="College", is_gw=True, part_of=self.gwu)
         #Department
-        d = Organization(result["department"], organization_type="Department", is_gw=True, part_of=c)
+        d = Organization(result["department"], organization_type="AcademicDepartment", is_gw=True, part_of=c)
         return [c, d]
 
 
