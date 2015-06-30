@@ -104,6 +104,12 @@ class BasicLoader(Loader):
 
 
 class DepartmentLoader(Loader):
+    #List of departments that should be modeled as colleges.
+    colleges = ("The Trachtenberg School of Public Policy and Public Administration",
+                "Graduate School of Political Management",
+                "School of Media and Public Affairs",
+                "Corcoran School of the Arts & Design")
+
     def __init__(self, data_dir, limit=None):
         Loader.__init__(self, "fis_department.xml", data_dir, limit=limit)
         self.gwu = Organization(GWU, organization_type="University", is_gw=True)
@@ -118,7 +124,9 @@ class DepartmentLoader(Loader):
         #College
         c = Organization(result["college"], organization_type="College", is_gw=True, part_of=self.gwu)
         #Department
-        d = Organization(result["department"], organization_type="AcademicDepartment", is_gw=True, part_of=c)
+        d = Organization(result["department"],
+                         organization_type="College" if result["department"] in self.colleges else "AcademicDepartment",
+                         is_gw=True, part_of=c)
         return [c, d]
 
 
