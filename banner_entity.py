@@ -46,7 +46,7 @@ class Person():
             if self.first_name:
                 g.add((vcard_name_uri, VCARD.givenName, Literal(self.first_name)))
             if self.middle_name:
-                g.add((vcard_name_uri, VCARD.middleName, Literal(self.middle_name)))
+                g.add((vcard_name_uri, VIVO.middleName, Literal(self.middle_name)))
             if self.last_name:
                 g.add((vcard_name_uri, VCARD.familyName, Literal(self.last_name)))
 
