@@ -101,7 +101,8 @@ def add_date(date_uri, year, g, month=None, day=None, label=None):
     Return True if date was added.
     """
     #Date
-    if year:
+    #Filtering out dates that are set to 1900.
+    if year and str(year) != "1900":
         g.add((date_uri, RDF.type, VIVO.DateTimeValue))
         #Day, month, and year
         if day and month:
