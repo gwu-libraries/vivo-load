@@ -1,7 +1,6 @@
 from banner_entity import *
 from utility import *
-import csv
-import codecs
+import unicodecsv as csv
 
 # #Non-faculty academic
 # 28101 --> ['Uv Sr Rsch Scientist FT', 'Senior Research Scientist', 'Senior Research Scientist FT', 'Mc Sr Rsch Scientist FT', 'Sr Rsch Scientist', 'Uv Sr Rsch Scientist Ft', ' Senior Research Scientist']
@@ -34,7 +33,7 @@ def print_position_code_to_name(data_dir):
     Prints map of position code to position names.
     """
     positions = {}
-    with codecs.open(os.path.join(data_dir, "vivo_emplappt.txt"), 'r', encoding="utf-8") as csv_file:
+    with open(os.path.join(data_dir, "vivo_emplappt.txt"), 'rb') as csv_file:
         reader = csv.DictReader(csv_file, dialect="banner")
         for row in reader:
             pos_code = row["POSITION_CLASS"]
@@ -59,7 +58,7 @@ def load_demographic(data_dir, limit=None, fac_limit=None, non_fac_limit=None):
     non_faculty_gwids = get_non_faculty_gwids(data_dir, non_fac_limit=non_fac_limit)
     faculty_gwids = get_faculty_gwids(data_dir, fac_limit=fac_limit)
 
-    with codecs.open(os.path.join(data_dir, "vivo_demographic.txt"), 'r', encoding="utf-8") as csv_file:
+    with open(os.path.join(data_dir, "vivo_demographic.txt"), 'rb') as csv_file:
         reader = csv.DictReader(csv_file, dialect="banner")
         p_count = 0
         for row in reader:
@@ -99,7 +98,7 @@ def load_emplappt(data_dir, limit=None, non_fac_limit=None):
     #Yes this isn't the most efficient, but simpler.
     non_faculty_gwids = get_non_faculty_gwids(data_dir, non_fac_limit=non_fac_limit)
 
-    with codecs.open(os.path.join(data_dir, "vivo_emplappt.txt"), 'r', encoding="utf-8") as csv_file:
+    with open(os.path.join(data_dir, "vivo_emplappt.txt"), 'rb') as csv_file:
         reader = csv.DictReader(csv_file, dialect="banner")
         p_count = 0
         for row in reader:
@@ -128,13 +127,13 @@ def load_orgn(data_dir, limit=None):
 
     #Only load organizations that have entries in emplappt
     org_cds = set()
-    with codecs.open(os.path.join(data_dir, "vivo_emplappt.txt"), 'r', encoding="utf-8") as csv_file:
+    with open(os.path.join(data_dir, "vivo_emplappt.txt"), 'rb') as csv_file:
         reader = csv.DictReader(csv_file, dialect="banner")
         for row in reader:
             if row["POSITION_CLASS"] in pos_code_to_classes:
                 org_cds.add(row["HOME_ORG_CODE"])
 
-    with codecs.open(os.path.join(data_dir, "vivo_orgn.txt"), 'r', encoding="utf-8") as csv_file:
+    with open(os.path.join(data_dir, "vivo_orgn.txt"), 'rb') as csv_file:
         reader = csv.DictReader(csv_file, dialect="banner")
         o_count = 0
         for row in reader:
@@ -157,7 +156,7 @@ def load_college(data_dir, limit=None):
 
     college_cds = set()
     #Only load colleges that have entries in acadappt
-    with codecs.open(os.path.join(data_dir, "vivo_acadappt.txt"), 'r', encoding="utf-8") as csv_file:
+    with open(os.path.join(data_dir, "vivo_acadappt.txt"), 'rb') as csv_file:
         reader = csv.DictReader(csv_file, dialect="banner")
         for row in reader:
             college_cds.add(row["COLLEGE"])
@@ -195,13 +194,13 @@ def load_depart(data_dir, limit=None):
 
     #Read acadappt to get map of department to college
     department_to_college_dict = {}
-    with codecs.open(os.path.join(data_dir, "vivo_acadappt.txt"), 'r', encoding="utf-8") as csv_file:
+    with open(os.path.join(data_dir, "vivo_acadappt.txt"), 'rb') as csv_file:
         reader = csv.DictReader(csv_file, dialect="banner")
         for row in reader:
             department_to_college_dict[row["DEPARTMENT"]] = row["COLLEGE"]
 
     #"HKLS","Human Kinetics&Leisure Studies"
-    with codecs.open(os.path.join(data_dir, "vivo_depart.txt"), 'r', encoding="utf-8") as csv_file:
+    with open(os.path.join(data_dir, "vivo_depart.txt"), 'rb') as csv_file:
         reader = csv.DictReader(csv_file, dialect="banner")
         o_count = 0
         for row in reader:
@@ -231,7 +230,7 @@ def load_acadappt(data_dir, limit=None, load_appt=True, fac_limit=None):
     #Yes this isn't the most efficient, but simpler.
     faculty_gwids = get_faculty_gwids(data_dir, fac_limit=fac_limit)
 
-    with codecs.open(os.path.join(data_dir, "vivo_acadappt.txt"), 'r', encoding="utf-8") as csv_file:
+    with open(os.path.join(data_dir, "vivo_acadappt.txt"), 'rb') as csv_file:
         reader = csv.DictReader(csv_file, dialect="banner")
         for row_num, row in enumerate(reader):
             gw_id = row["EMPLOYEEID"]
@@ -262,7 +261,7 @@ def load_courses(data_dir, limit=None, fac_limit=None, non_fac_limit=None):
     faculty_gwids = get_faculty_gwids(data_dir, fac_limit=fac_limit)
 
     #This file is supposed to be utf-8, but is not valid.
-    with codecs.open(os.path.join(data_dir, "vivo_courses.txt"), 'r', encoding="utf-8", errors="ignore") as csv_file:
+    with open(os.path.join(data_dir, "vivo_courses.txt"), 'rb') as csv_file:
         reader = csv.DictReader(csv_file, dialect="banner")
         for row_num, row in enumerate(reader):
             gw_id = row["EMPLOYEEID"]
