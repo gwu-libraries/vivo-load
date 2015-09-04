@@ -46,17 +46,13 @@ def print_position_code_to_name(data_dir):
         print "%s --> %s" % (pos_code, positions[pos_code])
 
 
-def load_demographic(data_dir, limit=None, fac_limit=None, non_fac_limit=None):
+def load_demographic(data_dir, non_faculty_gwids, faculty_gwids, limit=None):
     #"G37176643","Sabina","M","Alkire","Institute for International Economic Policy","1900 F Street NW",,"Washington","DC",,"20052","sabina_alkire@gwu.edu","sabina_alkire","202-994-5320"
     print """
     Loading demographic. Limit=%s.
     """ % limit
     #Create an RDFLib Graph
     g = Graph(namespace_manager=ns_manager)
-
-    #Get the non-faculty and faculty gwids
-    non_faculty_gwids = get_non_faculty_gwids(data_dir, non_fac_limit=non_fac_limit)
-    faculty_gwids = get_faculty_gwids(data_dir, fac_limit=fac_limit)
 
     with open(os.path.join(data_dir, "vivo_demographic.txt"), 'rb') as csv_file:
         reader = csv.DictReader(csv_file, dialect="banner")
@@ -86,7 +82,7 @@ def load_demographic(data_dir, limit=None, fac_limit=None, non_fac_limit=None):
     return g
 
 
-def load_emplappt(data_dir, limit=None, non_fac_limit=None):
+def load_emplappt(data_dir, non_faculty_gwids, limit=None):
     #"G17437285","Uv Rsh Assoc Ft","28501","152401"
     print """
     Loading emplappt. Limit=%s.
@@ -94,18 +90,14 @@ def load_emplappt(data_dir, limit=None, non_fac_limit=None):
     #Create an RDFLib Graph
     g = Graph(namespace_manager=ns_manager)
 
-    #Get the non-faculty gwids
-    #Yes this isn't the most efficient, but simpler.
-    non_faculty_gwids = get_non_faculty_gwids(data_dir, non_fac_limit=non_fac_limit)
-
     with open(os.path.join(data_dir, "vivo_emplappt.txt"), 'rb') as csv_file:
         reader = csv.DictReader(csv_file, dialect="banner")
         p_count = 0
         for row in reader:
             gw_id = row["EMPLOYEEID"]
             pos_cd = row["POSITION_CLASS"]
-            if gw_id in non_faculty_gwids and pos_cd in pos_code_to_classes:
-                nf = NonFaculty(Person(gw_id), pos_code_to_classes[pos_cd])
+            if gw_id in non_faculty_gwids:
+                nf = NonFaculty(Person(gw_id), pos_code_to_classes.get(pos_cd, "NonFacultyAcademic"))
                 nf.title = row["JOB_TITLE"]
                 nf.home_organization = Organization(row["HOME_ORG_CODE"])
                 g += nf.to_graph()
@@ -217,7 +209,7 @@ def load_depart(data_dir, limit=None):
     return g
 
 
-def load_acadappt(data_dir, limit=None, load_appt=True, fac_limit=None):
+def load_acadappt(data_dir, faculty_gwids, limit=None, load_appt=True):
     print """
     Loading acadappt. Limit=%s. Load appt=%s.
     """ % (limit, load_appt)
@@ -225,10 +217,6 @@ def load_acadappt(data_dir, limit=None, load_appt=True, fac_limit=None):
     #"G10002741","625-25","LAW","200003","Fed Criminal Appellate Clinc","4","9",
     #Create an RDFLib Graph
     g = Graph(namespace_manager=ns_manager)
-
-    #Get the faculty gwids
-    #Yes this isn't the most efficient, but simpler.
-    faculty_gwids = get_faculty_gwids(data_dir, fac_limit=fac_limit)
 
     with open(os.path.join(data_dir, "vivo_acadappt.txt"), 'rb') as csv_file:
         reader = csv.DictReader(csv_file, dialect="banner")
@@ -247,7 +235,7 @@ def load_acadappt(data_dir, limit=None, load_appt=True, fac_limit=None):
     return g
 
 
-def load_courses(data_dir, limit=None, fac_limit=None, non_fac_limit=None):
+def load_courses(data_dir, non_faculty_gwids, faculty_gwids, limit=None):
     print """
     Loading courses. Limit=%s.
     """ % limit
@@ -255,10 +243,6 @@ def load_courses(data_dir, limit=None, fac_limit=None, non_fac_limit=None):
 
     #Create an RDFLib Graph
     g = Graph(namespace_manager=ns_manager)
-
-    #Get the non-faculty and faculty gwids
-    non_faculty_gwids = get_non_faculty_gwids(data_dir, non_fac_limit=non_fac_limit)
-    faculty_gwids = get_faculty_gwids(data_dir, fac_limit=fac_limit)
 
     #This file is supposed to be utf-8, but is not valid.
     with open(os.path.join(data_dir, "vivo_courses.txt"), 'rb') as csv_file:

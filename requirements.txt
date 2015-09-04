@@ -1,4 +1,5 @@
-rdflib
-xlrd
-lxml
-unicodecsv
+rdflib==4.2.1
+xlrd==0.9.4
+lxml==3.4.4
+unicodecsv==0.13.0
+git+https://github.com/gwu-libraries/orcid2vivo.git@master#egg=orcid2vivo

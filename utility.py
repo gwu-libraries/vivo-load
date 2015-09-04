@@ -10,6 +10,7 @@ from lxml import etree
 import csv
 import os
 
+
 def num_to_str(num):
     """
     Converts a number to a string.
@@ -279,22 +280,19 @@ def get_non_faculty_gwids(data_dir, non_fac_limit=None):
     Returns the list of non-faculty gwids.
 
     This is determined by taking the intersection of gwids in banner
-    demographic data and gwids in banner administrative appointment
-    data where the position has one of the selected position codes and
+    demographic data and gwids in mygw data and
     removing all faculty gwids.
     """
-    empl_gwids = []
-    with codecs.open(os.path.join(data_dir, "vivo_emplappt.txt"), 'r', encoding="utf-8") as csv_file:
-        reader = csv.DictReader(csv_file, dialect="banner")
-        for row in reader:
-            if row["POSITION_CLASS"] in pos_code_to_classes:
-                empl_gwids.append(row["EMPLOYEEID"])
+    mygw_gwids = []
+    for result in xml_result_generator(os.path.join(data_dir, "mygw_users.xml")):
+        mygw_gwids.append(result["gw_id"])
+
     #Only gwids with demographic data
-    demo_gwids = demographic_intersection(empl_gwids, data_dir)
+    demo_gwids = demographic_intersection(mygw_gwids, data_dir)
     #Not faculty gwids
     fac_gwids = get_faculty_gwids(data_dir)
     gwids = [gw_id for gw_id in demo_gwids if gw_id not in fac_gwids]
-    if non_fac_limit and len(gwids) > non_fac_limit:
+    if non_fac_limit is not None and len(gwids) > non_fac_limit:
         return gwids[:non_fac_limit]
     else:
         return gwids
@@ -318,7 +316,7 @@ def get_faculty_gwids(data_dir, fac_limit=None):
         if valid_department_name(result["department"]) or valid_college_name(result["college"]):
             gwids.add(result["gw_id"])
     demo_gwids = demographic_intersection(gwids, data_dir)
-    if fac_limit and len(demo_gwids) > fac_limit:
+    if fac_limit is not None and len(demo_gwids) > fac_limit:
         return demo_gwids[:fac_limit]
     else:
         return demo_gwids

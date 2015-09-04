@@ -1,12 +1,16 @@
 from fis_entity import *
+from namespace import D
 import argparse
 from rdflib.compare import graph_diff
 from sparql import load_previous_graph, sparql_load, sparql_delete, serialize
 import fis_load
 import banner_load
+import mygw_load
+import orcid2vivo_loader
 from collections import OrderedDict
 from utility import remove_extra_args
 import time
+import datetime
 
 
 def process_graph(g, local_args):
@@ -50,6 +54,8 @@ if __name__ == '__main__':
                         help="Load everything, not just the difference with last load.")
     parser.add_argument("--skip-serialize", action="store_false", dest="perform_serialize",
                         help="Don't save the load.")
+    parser.add_argument("--skip-orcid2vivo", action="store_false", dest="perform_orcid2vivo",
+                        help="Skip running orcid2vivo.")
     default_split_size = 10000
     parser.add_argument("--split-size", type=int, default=default_split_size,
                         help="Maximum number of triples to include in a single load. Default is %s" %
@@ -87,6 +93,10 @@ if __name__ == '__main__':
                         help="Skip loading the academic appointment for the faculty. For b_acadappt only.")
     parser.add_argument("--resume", action="store_true",
                         help="Resume loading all starting with the provided data type.")
+    default_orcid2vivo_days = 7
+    parser.add_argument("--orcid2vivo-days", type=int, default=default_orcid2vivo_days,
+                        help="Run orcid2vivo for orcid ids that have never been loaded or have not been loaded in this "
+                             "many days. Default is %s days." % default_orcid2vivo_days)
 
     #Map of label for data type to load function.
     data_type_map = OrderedDict([
@@ -117,7 +127,12 @@ if __name__ == '__main__':
         ("fis_chapters", fis_load.load_chapters),
         ("fis_conf_abstracts", fis_load.load_conference_abstracts),
         ("fis_patents", fis_load.load_patents),
-        ("fis_grants", fis_load.load_grants)
+        ("fis_grants", fis_load.load_grants),
+        ("mygw_awards", mygw_load.load_awards),
+        ("mygw_prof_memberships", mygw_load.load_professional_memberships),
+        ("mygw_reviewers", mygw_load.load_reviewerships),
+        ("mygw_presentations", mygw_load.load_presentations),
+        ("mygw_users", mygw_load.load_users)
     ])
 
     data_types = list(data_type_map.keys())
@@ -152,14 +167,40 @@ if __name__ == '__main__':
 
     start_time = time.time()
 
+    #Load non_faculty_gwids and faculty_gwids
+    non_faculty_gwids = get_non_faculty_gwids(args.data_dir, args.non_fac_limit)
+    print "%s non-faculty" % len(non_faculty_gwids)
+    faculty_gwids = get_faculty_gwids(args.data_dir, args.fac_limit)
+    print "%s faculty" % len(faculty_gwids)
+
+    #Setup directory for orcid2vivo
+    store_dir = os.path.join(args.graph_dir, "orcid")
+    print "The store path is %s" % store_dir
+    if not os.path.exists(store_dir):
+        os.mkdir(store_dir)
+
     #Load each data type
     for data_type in args.data_type:
         func_args = vars(args).copy()
+        func_args["non_faculty_gwids"] = non_faculty_gwids
+        func_args["faculty_gwids"] = faculty_gwids
+        func_args["store_dir"] = store_dir
         args.graph = data_type
         func = data_type_map[data_type]
         #Limit to actual arguments
         remove_extra_args(func_args, func)
         graph = func(**func_args)
         process_graph(graph, args)
+
+    #Run orcid2vivo
+    if args.perform_orcid2vivo:
+        print "Running orcid2vivo."
+        before_datetime = datetime.datetime.now() - datetime.timedelta(days=args.orcid2vivo_days)
+        orcid_ids = orcid2vivo_loader.load(store_dir, args.endpoint, args.username, args.password,
+                                           limit=None, before_datetime=before_datetime, namespace=D, skip_person=True)
+        print "Loaded %s orcid_ids." % len(orcid_ids)
+
+    else:
+        print "Skipping orcid2vivo."
 
     print "Done in %.2f seconds." % (time.time() - start_time)
