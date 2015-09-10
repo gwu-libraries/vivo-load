@@ -33,33 +33,45 @@ class Loader():
         for entity in addl_entities:
             self.g += entity.to_graph()
 
-        for result_num, result in enumerate(xml_result_generator(os.path.join(self.data_dir, self.filename))):
-            #Check the _use_result function
-            if (self._use_result(result)
-                    #Optionally limit by faculty ids
-                    and (self.gwids is None or result["gw_id"] in self.gwids)):
-                #Optionally process the result to change values
-                self._process_result(result)
+        try:
+            row_count = 0
+            for row_count, result in enumerate(xml_result_generator(os.path.join(self.data_dir, self.filename)),
+                                                start=1):
+                #Check the _use_result function
+                if (self._use_result(result)
+                        #Optionally limit by faculty ids
+                        and (self.gwids is None or result["gw_id"] in self.gwids)):
+                    #Optionally process the result to change values
+                    self._process_result(result)
 
-                #Optionally map some result values to entities (e.g., organization)
-                for key, clazz in self.field_to_entity.items():
-                    if key in result:
-                        result[key] = clazz(result[key])
+                    #Optionally map some result values to entities (e.g., organization)
+                    for key, clazz in self.field_to_entity.items():
+                        if key in result:
+                            result[key] = clazz(result[key])
 
-                #Optionally rename some fields
-                for src_key, dest_key in self.field_rename.items():
-                    if src_key in result:
-                        result[dest_key] = result[src_key]
-                        del result[src_key]
+                    #Optionally rename some fields
+                    for src_key, dest_key in self.field_rename.items():
+                        if src_key in result:
+                            result[dest_key] = result[src_key]
+                            del result[src_key]
 
-                #Generate the entities
-                entities = self._generate_entities(result)
-                for entity in entities:
-                    self.g += entity.to_graph()
-            if self.limit and result_num >= self.limit-1:
-                break
+                    #Generate the entities
+                    entities = self._generate_entities(result)
+                    for entity in entities:
+                        self.g += entity.to_graph()
+                if self.limit and row_count > self.limit-1:
+                    break
 
-        return self.g
+            if not row_count:
+                warning_log.error("%s has no data.", self.filename)
+                return None
+
+            return self.g
+        #If there is an IOError, log it and return None
+        except IOError, e:
+            warning_log.error("%s: %s", e.strerror, e.filename)
+            return None
+
 
     def _addl_entities(self):
         return []

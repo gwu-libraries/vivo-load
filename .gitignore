@@ -60,3 +60,6 @@ target/
 
 # Data directory
 data/
+
+# Warnings
+load_warnings.txt

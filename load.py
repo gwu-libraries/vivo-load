@@ -14,39 +14,57 @@ import datetime
 
 
 def process_graph(g, local_args):
-    if local_args.perform_diff:
-        #Load the previous graph
-        prev_g = load_previous_graph(local_args.graph_dir, local_args.graph)
+    #G is none if an error occurred.  This leaves the graphs unchanged.
+    if g is not None:
+        if local_args.perform_diff:
+            #Load the previous graph
+            prev_g = load_previous_graph(local_args.graph_dir, local_args.graph)
+        else:
+            prev_g = Graph(namespace_manager=ns_manager)
+
+        #Find the diff
+        (g_both, g_del, g_add) = graph_diff(prev_g, g)
+        g_add.namespace_manager = ns_manager
+        g_del.namespace_manager = ns_manager
+
+        #Print the diff
+        print "To add %s triples." % len(g_add)
+        if local_args.print_triples:
+            print g_add.serialize(format="turtle")
+        print "To delete %s triples." % len(g_del)
+        if local_args.print_triples:
+            print g_del.serialize(format="turtle")
+
+        if local_args.perform_load:
+            if len(g_add) > 0:
+                sparql_load(g_add, local_args.htdocs_dir, local_args.endpoint, local_args.username, local_args.password,
+                            split_size=local_args.split_size)
+            if len(g_del) > 0:
+                sparql_delete(g_del, local_args.endpoint, local_args.username, local_args.password,
+                              split_size=local_args.delete_split_size)
+
+        #Save to graphs archive directory
+        if local_args.perform_load and local_args.perform_serialize:
+            serialize(g, local_args.graph_dir, local_args.graph)
     else:
-        prev_g = Graph(namespace_manager=ns_manager)
-
-    #Find the diff
-    (g_both, g_del, g_add) = graph_diff(prev_g, g)
-    g_add.namespace_manager = ns_manager
-    g_del.namespace_manager = ns_manager
-
-    #Print the diff
-    print "To add %s triples." % len(g_add)
-    if local_args.print_triples:
-        print g_add.serialize(format="turtle")
-    print "To delete %s triples." % len(g_del)
-    if local_args.print_triples:
-        print g_del.serialize(format="turtle")
-
-    if local_args.perform_load:
-        if len(g_add) > 0:
-            sparql_load(g_add, local_args.htdocs_dir, local_args.endpoint, local_args.username, local_args.password,
-                        split_size=local_args.split_size)
-        if len(g_del) > 0:
-            sparql_delete(g_del, local_args.endpoint, local_args.username, local_args.password,
-                          split_size=local_args.delete_split_size)
-
-    #Save to graphs archive directory
-    if local_args.perform_load and local_args.perform_serialize:
-        serialize(g, local_args.graph_dir, local_args.graph)
+        print "Performing no additions or deletions due to an error."
 
 
 if __name__ == '__main__':
+    #Logging
+    #Channel
+    if os.path.exists("load_warnings.txt"):
+        os.remove("load_warnings.txt")
+    ch = logging.FileHandler("load_warnings.txt", delay=True)
+    ch.setLevel(logging.WARNING)
+    #Formatter
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    #Add formatter to ch
+    ch.setFormatter(formatter)
+    # add ch to logger
+    warning_log.addHandler(ch)
+
+    #Argument parser
     parser = argparse.ArgumentParser()
     parser.add_argument("--skip-load", action="store_false", dest="perform_load",
                         help="Generate RDF, but do not load into VIVO.")
@@ -196,9 +214,13 @@ if __name__ == '__main__':
     if args.perform_orcid2vivo:
         print "Running orcid2vivo."
         before_datetime = datetime.datetime.now() - datetime.timedelta(days=args.orcid2vivo_days)
-        orcid_ids = orcid2vivo_loader.load(store_dir, args.endpoint, args.username, args.password,
-                                           limit=None, before_datetime=before_datetime, namespace=D, skip_person=True)
+        orcid_ids, failed_orcid_ids = orcid2vivo_loader.load(store_dir, args.endpoint, args.username, args.password,
+                                                             limit=None, before_datetime=before_datetime, namespace=D,
+                                                             skip_person=True)
         print "Loaded %s orcid_ids." % len(orcid_ids)
+        print "Failed %s orcid_ids" % len(failed_orcid_ids)
+        if failed_orcid_ids:
+            warning_log.warning("Failed orcid_ids: %s", " ,".join(failed_orcid_ids))
 
     else:
         print "Skipping orcid2vivo."

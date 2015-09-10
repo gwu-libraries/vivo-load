@@ -2,31 +2,6 @@ from banner_entity import *
 from utility import *
 import unicodecsv as csv
 
-# #Non-faculty academic
-# 28101 --> ['Uv Sr Rsch Scientist FT', 'Senior Research Scientist', 'Senior Research Scientist FT', 'Mc Sr Rsch Scientist FT', 'Sr Rsch Scientist', 'Uv Sr Rsch Scientist Ft', ' Senior Research Scientist']
-# 28301 --> ['Uv Rsch Scientist FT', 'Mc Rsch Scientist FT', 'Research Scientist', 'Uv Research Scientist Ft', 'Mc Rsh Scient Ft', 'Uv Rsh Scient Ft', 'Mc Research Scientist Ft', 'Sr. Research Scientist']
-# 28302 --> ['Mc Rsch Scientist PT', 'Research Scientist', 'Uv Rsch Scientist PT']
-# 28502 --> ['Uv Rsch Assoc PT', 'Research Associate PT', 'Uv Rsch Assoc', 'Research Associate', 'Uv Rsh Assoc Pt', 'Mc Rsch Assoc PT', 'Postdoctoral Scientist']
-# 283R2 --> ['Mc Lead Research Scientist Pt', 'Uv Lead Research Scientist PT', 'Uv Lead Research Scientist FT']
-# 283R1 --> ['Lead Research Scientist', 'Deputy Director CHCQ', ' Lead Research Scientist', 'Uv Lead Research Scientist FT', 'Sr Research Network Engineer', 'Mc Lead Research Scientist Ft']
-# 28102 --> ['Mc Sr Rsch Scientist FT', 'Sr. Research Scientist']
-# 19S01 --> ['Research Project Director', 'Programs&Development Director', 'Director of Research']
-# 28501 --> ['Uv Rsh Assoc Ft', 'Uv Rsch Assoc FT', 'Policy Associate', 'Research Asso. Study Coodntr', 'Research Associate', 'Bioinformatics Analyst', 'Mc Rsch Assoc FT', 'Rsch Assoc', 'Mc Rsh Assoc Ft', 'Uv Rsch Assoc FT/SAS Pgrmr']
-# 27401 --> ['Uv Rsch Dir Non-Fa Ft']
-#
-# #Postdoc
-# 289A1 --> ['Uv Post-Doctoral Scientist Ft', ' Post-Doctoral Scientist', 'Post-Doctoral Scientist', 'Post Doctoral Scientist', 'Research Scientist', 'Mc Post-Doctoral Scientist Ft', 'Uv Post-Doctoral Scientist PT']
-# 289A2 --> ['Uv Post-Doctoral Scientist Pt']
-#
-# #Librarian
-# 307A1 --> ['Uv Librarian 4 FT', 'Uv Lib 4 Ft']
-# 30601 --> ['Lib 1', 'Uv Librarian 1 FT', 'Uv Librarian II FT', 'Mc Lib 1 Ft']
-# 30602 --> ['Uv Lib 1 Ft', 'Systems Librarian']
-# 30402 --> ['Uv Lib 3 Pt', 'Uv Librarian 3 PT', 'Uv Librarian IV FT']
-# 30401 --> ['Uv Lib 3 Ft', 'Mc Lib 3 Ft', 'Uv Librarian 4FT', 'Uv Lib 4 Ft', 'Uv Lib 2 Ft', 'Uv Librarian 3 FT']
-# 01001 --> ['UV Librarian & Vice Provost']
-# 30501 --> ['Uv Lib 3 Ft', 'Uv Librarian 2 FT', 'Uv Librarian 3 FT', 'Mc Lib 2 Ft', 'Uv Lib 2 Ft', 'Uv Lib  Ft', 'Systems Librarian', 'Uv Lib 4 Ft', 'Librarian 2']
-
 
 def print_position_code_to_name(data_dir):
     """
@@ -47,7 +22,6 @@ def print_position_code_to_name(data_dir):
 
 
 def load_demographic(data_dir, non_faculty_gwids, faculty_gwids, limit=None):
-    #"G37176643","Sabina","M","Alkire","Institute for International Economic Policy","1900 F Street NW",,"Washington","DC",,"20052","sabina_alkire@gwu.edu","sabina_alkire","202-994-5320"
     print """
     Loading demographic. Limit=%s.
     """ % limit
@@ -57,7 +31,8 @@ def load_demographic(data_dir, non_faculty_gwids, faculty_gwids, limit=None):
     with open(os.path.join(data_dir, "vivo_demographic.txt"), 'rb') as csv_file:
         reader = csv.DictReader(csv_file, dialect="banner")
         p_count = 0
-        for row in reader:
+        row_count = 0
+        for row_count, row in enumerate(reader):
             gw_id = row["EMPLOYEEID"]
             if gw_id in faculty_gwids or gw_id in non_faculty_gwids:
                 p = Person(gw_id)
@@ -79,6 +54,10 @@ def load_demographic(data_dir, non_faculty_gwids, faculty_gwids, limit=None):
                 if limit and p_count >= limit:
                     break
 
+        if not row_count:
+            warning_log.error("vivo_demographic.txt has no data.")
+            return None
+
     return g
 
 
@@ -89,24 +68,33 @@ def load_emplappt(data_dir, non_faculty_gwids, limit=None):
     """ % limit
     #Create an RDFLib Graph
     g = Graph(namespace_manager=ns_manager)
+    try:
+        with open(os.path.join(data_dir, "vivo_emplappt.txt"), 'rb') as csv_file:
+            reader = csv.DictReader(csv_file, dialect="banner")
+            row_count = 0
+            p_count = 0
+            for row_count, row in enumerate(reader, start=1):
+                gw_id = row["EMPLOYEEID"]
+                pos_cd = row["POSITION_CLASS"]
+                if gw_id in non_faculty_gwids:
+                    nf = NonFaculty(Person(gw_id), pos_code_to_classes.get(pos_cd, "NonFacultyAcademic"))
+                    nf.title = row["JOB_TITLE"]
+                    nf.home_organization = Organization(row["HOME_ORG_CODE"])
+                    g += nf.to_graph()
 
-    with open(os.path.join(data_dir, "vivo_emplappt.txt"), 'rb') as csv_file:
-        reader = csv.DictReader(csv_file, dialect="banner")
-        p_count = 0
-        for row in reader:
-            gw_id = row["EMPLOYEEID"]
-            pos_cd = row["POSITION_CLASS"]
-            if gw_id in non_faculty_gwids:
-                nf = NonFaculty(Person(gw_id), pos_code_to_classes.get(pos_cd, "NonFacultyAcademic"))
-                nf.title = row["JOB_TITLE"]
-                nf.home_organization = Organization(row["HOME_ORG_CODE"])
-                g += nf.to_graph()
+                    p_count += 1
+                    if limit and p_count >= limit:
+                        break
 
-                p_count += 1
-                if limit and p_count >= limit:
-                    break
+            if not row_count:
+                warning_log.error("vivo_emplappt.txt has no data.")
+                return None
 
-    return g
+        return g
+        #If there is an IOError, log it and return None
+    except IOError, e:
+        warning_log.error("%s: %s", e.strerror, e.filename)
+        return None
 
 
 def load_orgn(data_dir, limit=None):
@@ -117,28 +105,42 @@ def load_orgn(data_dir, limit=None):
     #Create an RDFLib Graph
     g = Graph(namespace_manager=ns_manager)
 
-    #Only load organizations that have entries in emplappt
-    org_cds = set()
-    with open(os.path.join(data_dir, "vivo_emplappt.txt"), 'rb') as csv_file:
-        reader = csv.DictReader(csv_file, dialect="banner")
-        for row in reader:
-            if row["POSITION_CLASS"] in pos_code_to_classes:
-                org_cds.add(row["HOME_ORG_CODE"])
+    try:
+        #Only load organizations that have entries in emplappt
+        org_cds = set()
+        with open(os.path.join(data_dir, "vivo_emplappt.txt"), 'rb') as csv_file:
+            reader = csv.DictReader(csv_file, dialect="banner")
+            row_count = 0
+            for row_count, row in enumerate(reader, start=1):
+                if row["POSITION_CLASS"] in pos_code_to_classes:
+                    org_cds.add(row["HOME_ORG_CODE"])
+            if not row_count:
+                warning_log.error("vivo_emplappt.txt has no data, so not loading organization.")
+                return None
 
-    with open(os.path.join(data_dir, "vivo_orgn.txt"), 'rb') as csv_file:
-        reader = csv.DictReader(csv_file, dialect="banner")
-        o_count = 0
-        for row in reader:
-            org_cd = row["ORG_CODE"]
-            if org_cd in org_cds:
-                o = Organization(org_cd, organization_type="Department")
-                o.name = row["ORG_TITLE"]
-                g += o.to_graph()
+        with open(os.path.join(data_dir, "vivo_orgn.txt"), 'rb') as csv_file:
+            reader = csv.DictReader(csv_file, dialect="banner")
+            row_count = 0
+            o_count = 0
+            for row_count, row in enumerate(reader, start=1):
+                org_cd = row["ORG_CODE"]
+                if org_cd in org_cds:
+                    o = Organization(org_cd, organization_type="Department")
+                    o.name = row["ORG_TITLE"]
+                    g += o.to_graph()
 
-                o_count += 1
-                if limit and o_count >= limit:
-                    break
-    return g
+                    o_count += 1
+                    if limit and o_count >= limit:
+                        break
+            if not row_count:
+                warning_log.error("vivo_orgn.txt has no data.")
+                return None
+
+        return g
+    #If there is an IOError, log it and return None
+    except IOError, e:
+        warning_log.error("%s: %s", e.strerror, e.filename)
+        return None
 
 
 def load_college(data_dir, limit=None):
@@ -146,34 +148,47 @@ def load_college(data_dir, limit=None):
     Loading college. Limit=%s.
     """ % limit
 
-    college_cds = set()
-    #Only load colleges that have entries in acadappt
-    with open(os.path.join(data_dir, "vivo_acadappt.txt"), 'rb') as csv_file:
-        reader = csv.DictReader(csv_file, dialect="banner")
-        for row in reader:
-            college_cds.add(row["COLLEGE"])
+    try:
+        college_cds = set()
+        #Only load colleges that have entries in acadappt
+        with open(os.path.join(data_dir, "vivo_acadappt.txt"), 'rb') as csv_file:
+            row_count = 0
+            reader = csv.DictReader(csv_file, dialect="banner")
+            for row_count, row in enumerate(reader, start=1):
+                college_cds.add(row["COLLEGE"])
+            if not row_count:
+                warning_log.error("vivo_acadappt.txt has no data, so not loading college.")
+                return None
 
-    #Remove "No College Designated"
-    college_cds.remove("00")
+        #Remove "No College Designated"
+        college_cds.remove("00")
 
-    #Create an RDFLib Graph
-    g = Graph(namespace_manager=ns_manager)
+        #Create an RDFLib Graph
+        g = Graph(namespace_manager=ns_manager)
 
-    #"01","Columbian Col & Grad School"
-    with open(os.path.join(data_dir, "vivo_college.txt"), 'rb') as csv_file:
-        reader = csv.DictReader(csv_file, dialect="banner")
-        o_count = 0
-        for row in reader:
-            college_cd = row["COLLEGE_CD"]
-            if college_cd in college_cds:
-                o = Organization(college_cd, organization_type="College")
-                o.name = row["COLLEGE"]
-                g += o.to_graph()
-                o_count += 1
-                if limit and o_count >= limit:
-                    break
+        #"01","Columbian Col & Grad School"
+        with open(os.path.join(data_dir, "vivo_college.txt"), 'rb') as csv_file:
+            reader = csv.DictReader(csv_file, dialect="banner")
+            row_count = 0
+            o_count = 0
+            for row_count, row in enumerate(reader, start=1):
+                college_cd = row["COLLEGE_CD"]
+                if college_cd in college_cds:
+                    o = Organization(college_cd, organization_type="College")
+                    o.name = row["COLLEGE"]
+                    g += o.to_graph()
+                    o_count += 1
+                    if limit and o_count >= limit:
+                        break
+            if not row_count:
+                warning_log.error("vivo_college.txt has no data.")
+                return None
 
-    return g
+        return g
+    #If there is an IOError, log it and return None
+    except IOError, e:
+        warning_log.error("%s: %s", e.strerror, e.filename)
+        return None
 
 
 def load_depart(data_dir, limit=None):
@@ -184,29 +199,43 @@ def load_depart(data_dir, limit=None):
     #Create an RDFLib Graph
     g = Graph(namespace_manager=ns_manager)
 
-    #Read acadappt to get map of department to college
-    department_to_college_dict = {}
-    with open(os.path.join(data_dir, "vivo_acadappt.txt"), 'rb') as csv_file:
-        reader = csv.DictReader(csv_file, dialect="banner")
-        for row in reader:
-            department_to_college_dict[row["DEPARTMENT"]] = row["COLLEGE"]
+    try:
+        #Read acadappt to get map of department to college
+        department_to_college_dict = {}
+        with open(os.path.join(data_dir, "vivo_acadappt.txt"), 'rb') as csv_file:
+            row_count = 0
+            reader = csv.DictReader(csv_file, dialect="banner")
+            for row_count, row in enumerate(reader, start=1):
+                department_to_college_dict[row["DEPARTMENT"]] = row["COLLEGE"]
 
-    #"HKLS","Human Kinetics&Leisure Studies"
-    with open(os.path.join(data_dir, "vivo_depart.txt"), 'rb') as csv_file:
-        reader = csv.DictReader(csv_file, dialect="banner")
-        o_count = 0
-        for row in reader:
-            dept_cd = row["DEPARTMENT_CD"]
-            if dept_cd not in ("0000",):
-                o = Organization(dept_cd, organization_type="Department")
-                o.name = row["DEPARTMENT"]
-                o.part_of = Organization(department_to_college_dict.get(dept_cd))
-                g += o.to_graph()
-                o_count += 1
-                if limit and o_count >= limit:
-                    break
+            if not row_count:
+                warning_log.error("vivo_acadappt.txt has no data, so not loading department.")
+                return None
 
-    return g
+        #"HKLS","Human Kinetics&Leisure Studies"
+        with open(os.path.join(data_dir, "vivo_depart.txt"), 'rb') as csv_file:
+            reader = csv.DictReader(csv_file, dialect="banner")
+            o_count = 0
+            row_count = 0
+            for row_count, row in enumerate(reader, start=1):
+                dept_cd = row["DEPARTMENT_CD"]
+                if dept_cd not in ("0000",):
+                    o = Organization(dept_cd, organization_type="Department")
+                    o.name = row["DEPARTMENT"]
+                    o.part_of = Organization(department_to_college_dict.get(dept_cd))
+                    g += o.to_graph()
+                    o_count += 1
+                    if limit and o_count >= limit:
+                        break
+            if not row_count:
+                warning_log.error("vivo_depart.txt has no data.")
+                return None
+
+        return g
+    #If there is an IOError, log it and return None
+    except IOError, e:
+        warning_log.error("%s: %s", e.strerror, e.filename)
+        return None
 
 
 def load_acadappt(data_dir, faculty_gwids, limit=None, load_appt=True):
@@ -218,21 +247,30 @@ def load_acadappt(data_dir, faculty_gwids, limit=None, load_appt=True):
     #Create an RDFLib Graph
     g = Graph(namespace_manager=ns_manager)
 
-    with open(os.path.join(data_dir, "vivo_acadappt.txt"), 'rb') as csv_file:
-        reader = csv.DictReader(csv_file, dialect="banner")
-        for row_num, row in enumerate(reader):
-            gw_id = row["EMPLOYEEID"]
-            if gw_id in faculty_gwids:
-                f = Faculty(Person(gw_id), load_appt=load_appt)
-                f.department = Organization(row["DEPARTMENT"])
-                f.title = row["POSITION_TITLE"]
-                f.start_term = row["START_TERM_CODE"]
-                g += f.to_graph()
+    try:
+        with open(os.path.join(data_dir, "vivo_acadappt.txt"), 'rb') as csv_file:
+            reader = csv.DictReader(csv_file, dialect="banner")
+            row_count = 0
+            for row_count, row in enumerate(reader):
+                gw_id = row["EMPLOYEEID"]
+                if gw_id in faculty_gwids:
+                    f = Faculty(Person(gw_id), load_appt=load_appt)
+                    f.department = Organization(row["DEPARTMENT"])
+                    f.title = row["POSITION_TITLE"]
+                    f.start_term = row["START_TERM_CODE"]
+                    g += f.to_graph()
 
-                if limit and row_num >= limit-1:
-                    break
+                    if limit and row_count > limit-1:
+                        break
+            if not row_count:
+                warning_log.error("vivo_acadappt.txt has no data.")
+                return None
 
-    return g
+        return g
+    #If there is an IOError, log it and return None
+    except IOError, e:
+        warning_log.error("%s: %s", e.strerror, e.filename)
+        return None
 
 
 def load_courses(data_dir, non_faculty_gwids, faculty_gwids, limit=None):
@@ -244,16 +282,25 @@ def load_courses(data_dir, non_faculty_gwids, faculty_gwids, limit=None):
     #Create an RDFLib Graph
     g = Graph(namespace_manager=ns_manager)
 
-    #This file is supposed to be utf-8, but is not valid.
-    with open(os.path.join(data_dir, "vivo_courses.txt"), 'rb') as csv_file:
-        reader = csv.DictReader(csv_file, dialect="banner")
-        for row_num, row in enumerate(reader):
-            gw_id = row["EMPLOYEEID"]
-            if gw_id in faculty_gwids or gw_id in non_faculty_gwids:
-                c = Course(Person(gw_id), row["COURSE_NBR"], row["SUBJECT"], row["COURSE_TITLE"])
-                g += c.to_graph()
+    try:
+        #This file is supposed to be utf-8, but is not valid.
+        with open(os.path.join(data_dir, "vivo_courses.txt"), 'rb') as csv_file:
+            reader = csv.DictReader(csv_file, dialect="banner")
+            row_count = 0
+            for row_count, row in enumerate(reader, start=1):
+                gw_id = row["EMPLOYEEID"]
+                if gw_id in faculty_gwids or gw_id in non_faculty_gwids:
+                    c = Course(Person(gw_id), row["COURSE_NBR"], row["SUBJECT"], row["COURSE_TITLE"])
+                    g += c.to_graph()
 
-                if limit and row_num >= limit-1:
-                    break
+                    if limit and row_count > limit-1:
+                        break
+            if not row_count:
+                warning_log.error("vivo_courses.txt has no data.")
+                return None
 
-    return g
+        return g
+    #If there is an IOError, log it and return None
+    except IOError, e:
+        warning_log.error("%s: %s", e.strerror, e.filename)
+        return None

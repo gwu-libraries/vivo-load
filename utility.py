@@ -9,6 +9,11 @@ import codecs
 from lxml import etree
 import csv
 import os
+import logging
+
+#A logger to be used for logging warnings or errors detected during loading.
+warning_log = logging.getLogger("load_warnings")
+warning_log.setLevel(logging.WARNING)
 
 
 def num_to_str(num):
@@ -171,30 +176,6 @@ def strip_gw_prefix(string):
     if isinstance(string, basestring) and string.startswith("GW_"):
         return string[3:]
     return string
-
-
-class XlWrapper():
-
-    def __init__(self, filepath):
-        self.wb = xlrd.open_workbook(filepath)
-        self.ws = self.wb.sheet_by_index(0)
-        self.nrows = self.ws.nrows
-        self.datemode = self.wb.datemode
-
-        #Read column names
-        self.col_names = {}
-        for col_num in range(self.ws.ncols):
-            self.col_names[self.ws.cell_value(0, col_num)] = col_num
-
-    def cell_value(self, row_num, col_name):
-        value = self.ws.cell_value(row_num, self.col_names[col_name])
-
-        if isinstance(value, basestring):
-            #Remove form feed (\f) since they break jena.  Yeah!
-            value = value.replace("\f", "")
-            #Strip whitespace
-            value = value.strip()
-        return value
 
 
 def xml_result_generator(filepath):
