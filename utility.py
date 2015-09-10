@@ -189,9 +189,11 @@ class XlWrapper():
     def cell_value(self, row_num, col_name):
         value = self.ws.cell_value(row_num, self.col_names[col_name])
 
-        #Remove form feed (\f) since they break jena.  Yeah!
         if isinstance(value, basestring):
-            return value.replace("\f", "")
+            #Remove form feed (\f) since they break jena.  Yeah!
+            value = value.replace("\f", "")
+            #Strip whitespace
+            value = value.strip()
         return value
 
 
@@ -207,7 +209,8 @@ def xml_result_generator(filepath):
             if "xsi:nil" in field_elem.attrib or not field_elem.text:
                 value = None
             else:
-                value = field_elem.text
+                #Strip whitespace
+                value = field_elem.text.strip()
             result[field_elem.get("name")] = value
         row_elem.clear()
         yield result
