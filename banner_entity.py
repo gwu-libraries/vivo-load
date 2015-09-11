@@ -8,6 +8,7 @@ class Person():
     def __init__(self, gw_id, load_vcards=True):
         self.gw_id = gw_id
         self.uri = D[to_hash_identifier(PREFIX_PERSON, (self.gw_id,))]
+        self.vcard_uri = self.uri + "-vcard"
         self.load_vcards = load_vcards
 
         self.first_name = None
@@ -35,14 +36,13 @@ class Person():
         ##vcard
         if self.load_vcards:
             #Main vcard
-            vcard_uri = self.uri + "-vcard"
-            g.add((vcard_uri, RDF.type, VCARD.Individual))
+            g.add((self.vcard_uri, RDF.type, VCARD.Individual))
             #Contact info for
-            g.add((vcard_uri, OBO.ARG_2000029, self.uri))
+            g.add((self.vcard_uri, OBO.ARG_2000029, self.uri))
             #Name vcard
             vcard_name_uri = self.uri + "-vcard-name"
             g.add((vcard_name_uri, RDF.type, VCARD.Name))
-            g.add((vcard_uri, VCARD.hasName, vcard_name_uri))
+            g.add((self.vcard_uri, VCARD.hasName, vcard_name_uri))
             if self.first_name:
                 g.add((vcard_name_uri, VCARD.givenName, Literal(self.first_name)))
             if self.middle_name:
@@ -55,7 +55,7 @@ class Person():
                 vcard_email_uri = self.uri + "-vcard-email"
                 g.add((vcard_email_uri, RDF.type, VCARD.Email))
                 g.add((vcard_email_uri, RDF.type, VCARD.Work))
-                g.add((vcard_uri, VCARD.hasEmail, vcard_email_uri))
+                g.add((self.vcard_uri, VCARD.hasEmail, vcard_email_uri))
                 g.add((vcard_email_uri, VCARD.email, Literal(self.email)))
 
             #Phone vcard
@@ -65,7 +65,7 @@ class Person():
                 g.add((vcard_phone_uri, RDF.type, VCARD.Telephone))
                 g.add((vcard_phone_uri, RDF.type, VCARD.Work))
                 g.add((vcard_phone_uri, RDF.type, VCARD.Voice))
-                g.add((vcard_uri, VCARD.hasTelephone, vcard_phone_uri))
+                g.add((self.vcard_uri, VCARD.hasTelephone, vcard_phone_uri))
                 g.add((vcard_phone_uri, VCARD.telephone, Literal(format_phone)))
 
             #Address vcard
@@ -73,7 +73,7 @@ class Person():
                 vcard_address_uri = self.uri + "-vcard-address"
                 g.add((vcard_address_uri, RDF.type, VCARD.Address))
                 g.add((vcard_address_uri, RDF.type, VCARD.Work))
-                g.add((vcard_uri, VCARD.hasAddress, vcard_address_uri))
+                g.add((self.vcard_uri, VCARD.hasAddress, vcard_address_uri))
                 g.add((vcard_address_uri, VCARD.streetAddress,
                        Literal(join_if_not_empty((self.address1, self.address2, self.address3), sep="; "))))
                 g.add((vcard_address_uri, VCARD.locality, Literal(self.city)))

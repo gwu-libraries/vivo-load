@@ -17,6 +17,8 @@ FOAF = Namespace('http://xmlns.com/foaf/0.1/')
 LOCAL = Namespace('http://vivo.gwu.edu/ontology/local#')
 #The SKOS namespace
 SKOS = Namespace('http://www.w3.org/2004/02/skos/core#')
+#The Linkvoj namespace
+LINKVOJ = Namespace('http://www.lingvoj.org/ontology#')
 
 ns_manager = NamespaceManager(Graph())
 ns_manager.bind('d', D)
@@ -27,3 +29,4 @@ ns_manager.bind('bibo', BIBO)
 ns_manager.bind("foaf", FOAF)
 ns_manager.bind("local", LOCAL)
 ns_manager.bind("skos", SKOS)
+ns_manager.bind("linkvoj", LINKVOJ)

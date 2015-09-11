@@ -1,10 +1,11 @@
 from fis_entity import Award, ProfessionalMembership, Reviewership, Presentation
 from fis_load import BasicLoader
-from utility import xml_result_generator, ns_manager
+from utility import xml_result_generator, ns_manager, D, to_hash_identifier, RDF, LINKVOJ, RDFS
+from prefixes import PREFIX_LANGUAGE
 from fis_entity import Person
 import orcid2vivo_loader
 import os
-from rdflib import Graph
+from rdflib import Graph, Literal
 
 
 def load_awards(data_dir, non_faculty_gwids, limit=None):
@@ -47,10 +48,19 @@ def load_users(data_dir, store_dir, non_faculty_gwids, limit=None):
 
     for result_num, result in enumerate(xml_result_generator(os.path.join(data_dir, "mygw_users.xml"))):
         if result["gw_id"] in non_faculty_gwids:
+            person = Person(result["gw_id"])
             #If there is an orcid id, add to store.
             if result["orcid_id"]:
-                store.add(result["orcid_id"], person_uri=Person(result["gw_id"]).uri)
+                store.add(result["orcid_id"], person_uri=person.uri)
 
+            #Add languages spoken
+            if result["languages"]:
+                languages = result["languages"].split(",")
+                for language in languages:
+                    language_uri = D[to_hash_identifier(PREFIX_LANGUAGE, (language,))]
+                    g.add((language_uri, RDF.type, LINKVOJ.Lingvo))
+                    g.add((language_uri, RDFS.label, Literal(language)))
+                    g.add((person.uri, LINKVOJ.expertUnderstanding, language_uri))
             if limit and result_num >= limit-1:
                 break
 
