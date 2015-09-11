@@ -97,7 +97,7 @@ def load_emplappt(data_dir, non_faculty_gwids, limit=None):
         return None
 
 
-def load_orgn(data_dir, limit=None):
+def load_orgn(data_dir, non_faculty_gwids, limit=None):
     #"001101","BOARD OF TRUSTEES"
     print """
     Loading orgn. Limit=%s.
@@ -112,7 +112,7 @@ def load_orgn(data_dir, limit=None):
             reader = csv.DictReader(csv_file, dialect="banner")
             row_count = 0
             for row_count, row in enumerate(reader, start=1):
-                if row["POSITION_CLASS"] in pos_code_to_classes:
+                if row["EMPLOYEEID"] in non_faculty_gwids:
                     org_cds.add(row["HOME_ORG_CODE"])
             if not row_count:
                 warning_log.error("vivo_emplappt.txt has no data, so not loading organization.")
