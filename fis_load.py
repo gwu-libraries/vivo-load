@@ -372,12 +372,20 @@ def load_patents(data_dir, faculty_gwids, limit=None):
     return l.load()
 
 
+class GrantLoader(Loader):
+    def __init__(self, data_dir, gwids, limit=None):
+        Loader.__init__(self, "fis_grants.xml", data_dir, gwids=gwids,
+                        entity_class=Grant,
+                        field_to_entity={"awarded_by": Organization, "gw_id": Person},
+                        field_rename={"gw_id": "person"},
+                        limit=limit)
+
+    def _use_result(self, result):
+        return result["title"]
+
+
 def load_grants(data_dir, faculty_gwids, limit=None):
     print "Loading grants."
 
-    l = Loader("fis_grants.xml", data_dir, gwids=faculty_gwids, entity_class=Grant,
-               field_to_entity={"awarded_by": Organization, "gw_id": Person},
-               field_rename={"gw_id": "person"},
-               add_entities_from_fields=["awarded_by"],
-               limit=limit)
+    l = GrantLoader(data_dir, faculty_gwids, limit=limit)
     return l.load()

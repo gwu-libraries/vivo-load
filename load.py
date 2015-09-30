@@ -107,6 +107,8 @@ if __name__ == '__main__':
     parser.add_argument("--faculty-limit", type=int, help="Limit to number of faculty to load.", dest="fac_limit")
     parser.add_argument("--non-faculty-limit", type=int, help="Limit to number of non-faculty to load.",
                         dest="non_fac_limit")
+    parser.add_argument("--faculty", help="Space separated list of faculty gwids.", nargs="+")
+    parser.add_argument("--non-faculty", help="Space separated list of non-faculty gwids.", nargs="+")
     parser.add_argument("--skip-appt", action="store_false", dest="load_appt",
                         help="Skip loading the academic appointment for the faculty. For b_acadappt only.")
     parser.add_argument("--resume", action="store_true",
@@ -186,9 +188,15 @@ if __name__ == '__main__':
     start_time = time.time()
 
     #Load non_faculty_gwids and faculty_gwids
-    non_faculty_gwids = get_non_faculty_gwids(args.data_dir, args.non_fac_limit)
+    if args.non_faculty:
+        non_faculty_gwids = args.non_faculty
+    else:
+        non_faculty_gwids = get_non_faculty_gwids(args.data_dir, args.non_fac_limit)
     print "%s non-faculty" % len(non_faculty_gwids)
-    faculty_gwids = get_faculty_gwids(args.data_dir, args.fac_limit)
+    if args.faculty:
+        faculty_gwids = args.faculty
+    else:
+        faculty_gwids = get_faculty_gwids(args.data_dir, args.fac_limit)
     print "%s faculty" % len(faculty_gwids)
 
     #Setup directory for orcid2vivo
