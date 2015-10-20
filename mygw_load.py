@@ -51,7 +51,7 @@ def load_users(data_dir, store_dir, non_faculty_gwids, limit=None):
             person = Person(result["gw_id"])
             #If there is an orcid id, add to store.
             if result["orcid_id"]:
-                store.add(result["orcid_id"], person_uri=person.uri)
+                store.add(result["orcid_id"], person_uri=person.uri, confirmed=True)
 
             #Add languages spoken
             if result["languages"]:
