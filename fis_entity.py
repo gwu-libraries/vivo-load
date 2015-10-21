@@ -262,14 +262,11 @@ class Report(Document):
         return g
 
 
-class ConferenceAbstract(Document):
+class ConferenceDocument(Document):
 
     def __init__(self, person, title, conference, start_year=None, start_month=None):
         Document.__init__(self, person, title, start_year=start_year, start_month=start_month)
         self.conference = conference
-
-    def _get_document_type(self):
-        return VIVO.Abstract
 
     def to_graph(self):
         g = Document.to_graph(self)
@@ -281,6 +278,24 @@ class ConferenceAbstract(Document):
         g.add((self.uri, BIBO.presentedAt, conference_uri))
 
         return g
+
+
+class ConferenceAbstract(ConferenceDocument):
+
+    def _get_document_type(self):
+        return VIVO.Abstract
+
+
+class ConferencePaper(ConferenceDocument):
+
+    def _get_document_type(self):
+        return VIVO.ConferencePaper
+
+
+class ConferencePoster(ConferenceDocument):
+
+    def _get_document_type(self):
+        return VIVO.ConferencePoster
 
 
 class Patent():

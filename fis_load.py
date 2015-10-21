@@ -365,6 +365,20 @@ def load_conference_abstracts(data_dir, faculty_gwids, limit=None):
     return l.load()
 
 
+def load_conference_papers(data_dir, faculty_gwids, limit=None):
+    print "Loading conference papers"
+
+    l = BasicLoader("fis_conf_papers.xml", data_dir, ConferencePaper, faculty_gwids, limit=limit)
+    return l.load()
+
+
+def load_conference_posters(data_dir, faculty_gwids, limit=None):
+    print "Loading conference posters"
+
+    l = BasicLoader("fis_conf_posters.xml", data_dir, ConferencePoster, faculty_gwids, limit=limit)
+    return l.load()
+
+
 def load_patents(data_dir, faculty_gwids, limit=None):
     print "Loading patents"
 

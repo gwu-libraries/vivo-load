@@ -146,6 +146,8 @@ if __name__ == '__main__':
         ("fis_testimony", fis_load.load_testimony),
         ("fis_chapters", fis_load.load_chapters),
         ("fis_conf_abstracts", fis_load.load_conference_abstracts),
+        ("fis_conf_papers", fis_load.load_conference_papers),
+        ("fis_conf_posters", fis_load.load_conference_posters),
         ("fis_patents", fis_load.load_patents),
         ("fis_grants", fis_load.load_grants),
         ("mygw_awards", mygw_load.load_awards),
