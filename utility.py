@@ -3,7 +3,6 @@ import hashlib
 from rdflib import Literal, RDF, RDFS, XSD
 from namespace import *
 import re
-import xlrd
 import inspect
 import codecs
 from lxml import etree
@@ -224,6 +223,7 @@ csv.register_dialect("banner", delimiter="|")
 
 #Map of banner position codes to VIVO classes
 pos_code_to_classes = {
+    #Research scientist or related
     "28101": "NonFacultyAcademic",
     "28301": "NonFacultyAcademic",
     "28302": "NonFacultyAcademic",
@@ -234,15 +234,17 @@ pos_code_to_classes = {
     "19S01": "NonFacultyAcademic",
     "28501": "NonFacultyAcademic",
     "27401": "NonFacultyAcademic",
+    #Postdoc
     "289A1": "Postdoc",
     "289A2": "Postdoc",
+    #Librarian
     "307A1": "Librarian",
     "30601": "Librarian",
     "30602": "Librarian",
     "30402": "Librarian",
     "30401": "Librarian",
     "01001": "Librarian",
-    "30501": "Librarian",
+    "30501": "Librarian"
 }
 
 
@@ -286,24 +288,22 @@ def get_faculty_gwids(data_dir, fac_limit=None):
     """
     Returns the list of faculty gwids.
 
-    This is determined by taking the intersection of gwids in banner
-    demographic data and the union of fis academic appointment and
-    administrative data.  (There are gwids for faculty in fis faculty
-    that have no appointments.)
+    This is the intersection of gwids in banner academic appointments
+    and fis faculty.
     """
-    gwids = set()
-    #fis faculty
-    for result in xml_result_generator(os.path.join(data_dir, "fis_academic_appointment.xml")):
-        if valid_department_name(result["department"]) or valid_college_name(result["college"]):
-            gwids.add(result["gw_id"])
-    for result in xml_result_generator(os.path.join(data_dir, "fis_admin_appointment.xml")):
-        if valid_department_name(result["department"]) or valid_college_name(result["college"]):
-            gwids.add(result["gw_id"])
-    demo_gwids = demographic_intersection(gwids, data_dir)
-    if fac_limit is not None and len(demo_gwids) > fac_limit:
-        return demo_gwids[:fac_limit]
+    banner_gwids = set()
+    with codecs.open(os.path.join(data_dir, "vivo_acadappt.txt"), 'r', encoding="utf-8") as csv_file:
+        reader = csv.DictReader(csv_file, dialect="banner")
+        for row in reader:
+            banner_gwids.add(row["EMPLOYEEID"])
+    fis_gwids = set()
+    for result in xml_result_generator(os.path.join(data_dir, "fis_faculty.xml")):
+        fis_gwids.add(result["gw_id"])
+    gwids = banner_gwids.intersection(fis_gwids)
+    if fac_limit is not None and len(gwids) > fac_limit:
+        return gwids[:fac_limit]
     else:
-        return demo_gwids
+        return gwids
 
 
 def format_phone_number(phone_number):
