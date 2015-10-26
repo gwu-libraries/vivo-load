@@ -287,23 +287,24 @@ def get_non_faculty_gwids(data_dir, non_fac_limit=None):
 def get_faculty_gwids(data_dir, fac_limit=None):
     """
     Returns the list of faculty gwids.
-
-    This is the intersection of gwids in banner academic appointments
-    and fis faculty.
+    This is determined by taking the intersection of gwids in banner
+    demographic data and the union of fis academic appointment and
+    administrative data.  (There are gwids for faculty in fis faculty
+    that have no appointments.)
     """
-    banner_gwids = set()
-    with codecs.open(os.path.join(data_dir, "vivo_acadappt.txt"), 'r', encoding="utf-8") as csv_file:
-        reader = csv.DictReader(csv_file, dialect="banner")
-        for row in reader:
-            banner_gwids.add(row["EMPLOYEEID"])
-    fis_gwids = set()
-    for result in xml_result_generator(os.path.join(data_dir, "fis_faculty.xml")):
-        fis_gwids.add(result["gw_id"])
-    gwids = banner_gwids.intersection(fis_gwids)
-    if fac_limit is not None and len(gwids) > fac_limit:
-        return gwids[:fac_limit]
+    gwids = set()
+    #fis faculty
+    for result in xml_result_generator(os.path.join(data_dir, "fis_academic_appointment.xml")):
+        if valid_department_name(result["department"]) or valid_college_name(result["college"]):
+            gwids.add(result["gw_id"])
+    for result in xml_result_generator(os.path.join(data_dir, "fis_admin_appointment.xml")):
+        if valid_department_name(result["department"]) or valid_college_name(result["college"]):
+            gwids.add(result["gw_id"])
+    demo_gwids = demographic_intersection(gwids, data_dir)
+    if fac_limit is not None and len(demo_gwids) > fac_limit:
+        return demo_gwids[:fac_limit]
     else:
-        return gwids
+        return demo_gwids
 
 
 def format_phone_number(phone_number):
