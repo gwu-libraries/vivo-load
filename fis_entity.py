@@ -30,7 +30,7 @@ class Person():
             for research_area in research_area_split:
                 research_area_uri = D[to_hash_identifier(PREFIX_RESEARCH_AREA, [research_area, ])]
                 g.add((research_area_uri, RDF.type, SKOS.concept))
-                g.add((research_area_uri, RDFS.label, Literal(self.research_areas)))
+                g.add((research_area_uri, RDFS.label, Literal(research_area)))
                 g.add((self.uri, VIVO.hasResearchArea, research_area_uri))
 
         ##Home Department
