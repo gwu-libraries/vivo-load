@@ -28,10 +28,11 @@ class Person():
             if len(research_area_split) == 1:
                 research_area_split = re.split(", *", self.research_areas)
             for research_area in research_area_split:
-                research_area_uri = D[to_hash_identifier(PREFIX_RESEARCH_AREA, [research_area, ])]
-                g.add((research_area_uri, RDF.type, SKOS.concept))
-                g.add((research_area_uri, RDFS.label, Literal(research_area[0].capitalize() + research_area[1:])))
-                g.add((self.uri, VIVO.hasResearchArea, research_area_uri))
+                if research_area:
+                    research_area_uri = D[to_hash_identifier(PREFIX_RESEARCH_AREA, [research_area, ])]
+                    g.add((research_area_uri, RDF.type, SKOS.concept))
+                    g.add((research_area_uri, RDFS.label, Literal(research_area[0].capitalize() + research_area[1:])))
+                    g.add((self.uri, VIVO.hasResearchArea, research_area_uri))
 
         ##Home Department
         if self.home_department:
