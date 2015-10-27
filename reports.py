@@ -31,6 +31,14 @@ def fis_faculty_with_no_appointments(data_dir):
     return fis_faculty_gwids - fis_appointment_gwids
 
 
+def fis_faculty_with_no_appointments_and_in_banner(data_dir):
+    fis_faculty_gwids = load_fis_faculty(data_dir)
+    fis_appointment_gwids = load_fis_appointments(data_dir)
+    banner_gwids = load_banner_demographic(data_dir)
+
+    return (fis_faculty_gwids - fis_appointment_gwids).intersection(banner_gwids)
+
+
 def fis_faculty_not_in_banner(data_dir):
     fis_gwids = load_fis_faculty(data_dir)
     banner_gwids = load_banner_demographic(data_dir)
@@ -49,6 +57,27 @@ def fis_appointments_not_in_banner_appointments_in_banner_demographics(data_dir)
     banner_demographic_gwids = load_banner_demographic(data_dir)
     banner_appointment_gwids = load_banner_appointment(data_dir)
     return fis_gwids.intersection(banner_demographic_gwids) - banner_appointment_gwids
+
+
+def fis_faculty_and_banner_demographics_intersection(data_dir):
+    fis_gwids = load_fis_faculty(data_dir)
+    banner_demographic_gwids = load_banner_demographic(data_dir)
+    return fis_gwids.intersection(banner_demographic_gwids)
+
+
+def fis_faculty_and_banner_demographics_intersection_not_in_banner_appointments(data_dir):
+    fis_gwids = load_fis_faculty(data_dir)
+    banner_demographic_gwids = load_banner_demographic(data_dir)
+    gwids = fis_gwids.intersection(banner_demographic_gwids)
+    banner_appointment_gwids = load_banner_appointment(data_dir)
+    return gwids - banner_appointment_gwids
+
+
+def fis_appointments(data_dir):
+    return load_banner_appointment(data_dir)
+
+def fis_appointments_in_banner_demographics(data_dir):
+    return load_banner_appointment(data_dir).intersection(load_banner_demographic(data_dir))
 
 
 def load_fis_faculty(data_dir):
@@ -93,7 +122,13 @@ if __name__ == "__main__":
         "fis_faculty_not_in_banner": fis_faculty_not_in_banner,
         "fis_appointments_not_in_banner_demographic": fis_appointments_not_in_banner_demographic,
         "fis_appointments_not_in_banner_appointments_in_banner_demographics":
-            fis_appointments_not_in_banner_appointments_in_banner_demographics
+            fis_appointments_not_in_banner_appointments_in_banner_demographics,
+        "fis_faculty_and_banner_demographics_intersection": fis_faculty_and_banner_demographics_intersection,
+        "fis_faculty_and_banner_demographics_intersection_not_in_banner_appointments":
+            fis_faculty_and_banner_demographics_intersection_not_in_banner_appointments,
+        "fis_faculty_with_no_appointments_and_in_banner": fis_faculty_with_no_appointments_and_in_banner,
+        "fis_appointments": fis_appointments,
+        "fis_appointments_in_banner_demographics": fis_appointments_in_banner_demographics
     }
 
     parser = argparse.ArgumentParser()
