@@ -288,17 +288,12 @@ def get_faculty_gwids(data_dir, fac_limit=None):
     """
     Returns the list of faculty gwids.
     This is determined by taking the intersection of gwids in banner
-    demographic data and the union of fis academic appointment and
-    administrative data.  (There are gwids for faculty in fis faculty
-    that have no appointments.)
+    demographic data and fis_faculty in certain roles.
     """
     gwids = set()
     #fis faculty
-    for result in xml_result_generator(os.path.join(data_dir, "fis_academic_appointment.xml")):
-        if valid_department_name(result["department"]) or valid_college_name(result["college"]):
-            gwids.add(result["gw_id"])
-    for result in xml_result_generator(os.path.join(data_dir, "fis_admin_appointment.xml")):
-        if valid_department_name(result["department"]) or valid_college_name(result["college"]):
+    for result in xml_result_generator(os.path.join(data_dir, "fis_faculty.xml")):
+        if result["role"] in ("Dean", "Dep Head", "Provost", "Faculty", "Faculty-COI"):
             gwids.add(result["gw_id"])
     demo_gwids = demographic_intersection(gwids, data_dir)
     if fac_limit is not None and len(demo_gwids) > fac_limit:
