@@ -9,6 +9,7 @@ from lxml import etree
 import csv
 import os
 import logging
+from prefixes import PREFIX_LANGUAGE
 
 #A logger to be used for logging warnings or errors detected during loading.
 warning_log = logging.getLogger("load_warnings")
@@ -169,6 +170,30 @@ def add_date_interval(interval_uri, subject_uri, g, start_uri=None, end_uri=None
             g.add((interval_uri, VIVO.start, start_uri))
         if end_uri:
             g.add((interval_uri, VIVO.end, end_uri))
+
+language_map = {
+    "ARAB":  "Arabic",
+    "BENG": "Bengali",
+    "CHIN": "Chinese",
+    "FREN": "French",
+    "GERM": "German",
+    "HIND": "Hindi/Urdu",
+    "ITAL": "Italian",
+    "JAPN": "Japanese",
+    "KREN": "Korean",
+    "MAND": "Mandarin",
+    "PORT": "Portuguese",
+    "PUNJ": "Punjabi",
+    "RUSS": "Russian",
+    "SPAN": "Spanish"
+}
+
+
+def add_language(language, person_uri, g):
+    language_uri = D[to_hash_identifier(PREFIX_LANGUAGE, (language,))]
+    g.add((language_uri, RDF.type, LINKVOJ.Lingvo))
+    g.add((language_uri, RDFS.label, Literal(language)))
+    g.add((person_uri, LINKVOJ.expertUnderstanding, language_uri))
 
 
 def strip_gw_prefix(string):

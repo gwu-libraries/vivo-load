@@ -1,11 +1,10 @@
 from fis_entity import Award, ProfessionalMembership, Reviewership, Presentation
 from fis_load import BasicLoader
-from utility import xml_result_generator, ns_manager, D, to_hash_identifier, RDF, LINKVOJ, RDFS
-from prefixes import PREFIX_LANGUAGE
+from utility import xml_result_generator, ns_manager, add_language
 from fis_entity import Person
 import orcid2vivo_loader
 import os
-from rdflib import Graph, Literal
+from rdflib import Graph
 
 
 def load_awards(data_dir, non_faculty_gwids, limit=None):
@@ -57,10 +56,7 @@ def load_users(data_dir, store_dir, non_faculty_gwids, limit=None):
             if result["languages"]:
                 languages = result["languages"].split(",")
                 for language in languages:
-                    language_uri = D[to_hash_identifier(PREFIX_LANGUAGE, (language,))]
-                    g.add((language_uri, RDF.type, LINKVOJ.Lingvo))
-                    g.add((language_uri, RDFS.label, Literal(language)))
-                    g.add((person.uri, LINKVOJ.expertUnderstanding, language_uri))
+                    add_language(language, person.uri, g)
             if limit and result_num >= limit-1:
                 break
 

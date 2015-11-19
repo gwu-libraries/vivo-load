@@ -5,11 +5,15 @@ from prefixes import *
 
 
 class Person():
-    def __init__(self, gw_id, personal_statement=None, home_department=None, research_areas=None):
+    def __init__(self, gw_id, personal_statement=None, home_department=None, research_areas=None, languages_known=None,
+                 languages_other=None):
         self.gw_id = gw_id
         self.personal_statement = personal_statement
         self.home_department = home_department
         self.research_areas = research_areas
+        self.languages_known = languages_known
+        self.languages_other = languages_other
+
 
         self.uri = D[to_hash_identifier(PREFIX_PERSON, (self.gw_id,))]
 
@@ -37,6 +41,16 @@ class Person():
         ##Home Department
         if self.home_department:
             g.add((self.uri, LOCAL.homeDept, self.home_department.uri))
+
+        ##Languages
+        if self.languages_known:
+            for language_code in self.languages_known.split(","):
+                if language_code in language_map:
+                    add_language(language_map[language_code], self.uri, g)
+
+        if self.languages_other:
+            for language in self.languages_other.split(","):
+                add_language(language, self.uri, g)
 
         return g
 
