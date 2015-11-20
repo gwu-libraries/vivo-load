@@ -21,6 +21,9 @@ class Person():
         #Create an RDFLib Graph
         g = Graph()
 
+        #Person type
+        g.add((self.uri, RDF.type, VIVO.FacultyMember))
+
         #Overview
         if self.personal_statement:
             g.add((self.uri, VIVO.overview, Literal(self.personal_statement)))
@@ -101,9 +104,6 @@ class Appointment():
     def to_graph(self):
         #Create an RDFLib Graph
         g = Graph()
-
-        #Person type
-        g.add((self.person.uri, RDF.type, VIVO.FacultyMember))
 
         g.add((self.uri, RDF.type, self.appt_type))
         #Title otherwise rank
