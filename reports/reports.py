@@ -1,5 +1,7 @@
-from utility import xml_result_generator, valid_department_name, valid_college_name
+import sys
 import os
+sys.path.append(os.path.abspath('..'))
+from loader.utility import xml_result_generator, valid_department_name, valid_college_name
 import codecs
 import csv
 import argparse
@@ -180,7 +182,7 @@ if __name__ == "__main__":
     }
 
     parser = argparse.ArgumentParser()
-    default_data_dir = "./data"
+    default_data_dir = "../data"
     parser.add_argument("--data-dir", default=default_data_dir, dest="data_dir",
                         help="Directory containing the data files. Default is %s" % default_data_dir)
     parser.add_argument("--file", action="store_true", help="Write output to file.")

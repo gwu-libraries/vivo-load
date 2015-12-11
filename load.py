@@ -1,16 +1,16 @@
-from fis_entity import *
-from namespace import D
 import argparse
-from rdflib.compare import graph_diff
-from sparql import load_previous_graph, sparql_load, sparql_delete, serialize
-import fis_load
-import banner_load
-import mygw_load
-import orcid2vivo_loader
-from collections import OrderedDict
-from utility import remove_extra_args
-import time
 import datetime
+import time
+from collections import OrderedDict
+
+import loader.fis_load as fis_load
+
+import orcid2vivo_loader
+from loader import banner_load, mygw_load
+from loader.fis_entity import *
+from loader.sparql import load_previous_graph, sparql_load, sparql_delete, serialize
+from rdflib.compare import graph_diff
+from loader.utility import remove_extra_args
 
 
 def process_graph(g, local_args):

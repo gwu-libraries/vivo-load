@@ -1,10 +1,11 @@
-from fis_entity import Award, ProfessionalMembership, Reviewership, Presentation
 from fis_load import BasicLoader
-from utility import xml_result_generator, ns_manager, add_language
-from fis_entity import Person
+
 import orcid2vivo_loader
 import os
+from loader.fis_entity import Award, ProfessionalMembership, Reviewership, Presentation
+from loader.fis_entity import Person
 from rdflib import Graph
+from utility import xml_result_generator, ns_manager, add_language
 
 
 def load_awards(data_dir, non_faculty_gwids, limit=None):

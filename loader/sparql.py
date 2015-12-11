@@ -1,12 +1,14 @@
 from __future__ import division
-from SPARQLWrapper import SPARQLWrapper
+
+import math
 import socket
+import time
+
 import codecs
 import os
-import time
-from namespace import ns_manager
+from SPARQLWrapper import SPARQLWrapper
+from loader.namespace import ns_manager
 from rdflib import Graph
-import math
 
 
 def serialize(graph, filepath, prefix, suffix=None, split_size=None):

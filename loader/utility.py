@@ -1,15 +1,19 @@
-from numbers import Number
-import hashlib
-from rdflib import Literal, RDF, RDFS, XSD
-from namespace import *
-import re
-import inspect
-import codecs
-from lxml import etree
 import csv
-import os
+import hashlib
+import inspect
 import logging
-from prefixes import PREFIX_LANGUAGE
+from numbers import Number
+
+from namespace import *
+
+import codecs
+import os
+import petl as etl
+import re
+from loader.prefixes import PREFIX_LANGUAGE
+from lxml import etree
+from petl.util.base import Table
+from rdflib import Literal, RDF, RDFS, XSD
 
 #A logger to be used for logging warnings or errors detected during loading.
 warning_log = logging.getLogger("load_warnings")
@@ -333,3 +337,32 @@ def format_phone_number(phone_number):
         if len(clean_phone_number) == 10:
             return "%s-%s-%s" % (clean_phone_number[0:3], clean_phone_number[3:6], clean_phone_number[6:])
     return None
+
+def frommysqlxml(filename):
+    return MySqlXmlView(filename)
+
+etl.frommysqlxml = frommysqlxml
+
+
+class MySqlXmlView(Table):
+    def __init__(self, filename):
+        self.filename = filename
+
+    def __iter__(self):
+        yielded_field_names = False
+        for event, row_elem in etree.iterparse(self.filename, tag="row", recover=True):
+            field_names = []
+            values = []
+            for field_elem in row_elem.iter("field"):
+                if "xsi:nil" in field_elem.attrib or not field_elem.text:
+                    value = None
+                else:
+                    #Strip whitespace
+                    value = unicode(field_elem.text).strip()
+                field_names.append(field_elem.get("name"))
+                values.append(value)
+            row_elem.clear()
+            if not yielded_field_names:
+                yield field_names
+                yielded_field_names = True
+            yield values
