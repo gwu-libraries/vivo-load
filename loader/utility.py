@@ -322,7 +322,7 @@ def get_faculty_gwids(data_dir, fac_limit=None):
     gwids = set()
     #fis faculty
     for result in xml_result_generator(os.path.join(data_dir, "fis_faculty.xml")):
-        if result["role"] in ("Dean", "Dep Head", "Provost", "Faculty", "Faculty-COI"):
+        if result["role"] in ("Dean", "Dep Head", "Provost", "Faculty", "Faculty-COI", "CLAD"):
             gwids.add(result["gw_id"])
     demo_gwids = demographic_intersection(gwids, data_dir)
     if fac_limit is not None and len(demo_gwids) > fac_limit:
