@@ -15,7 +15,7 @@ from lxml import etree
 from petl.util.base import Table
 from rdflib import Literal, RDF, RDFS, XSD
 
-#A logger to be used for logging warnings or errors detected during loading.
+# A logger to be used for logging warnings or errors detected during loading.
 warning_log = logging.getLogger("load_warnings")
 warning_log.setLevel(logging.WARNING)
 
@@ -110,11 +110,11 @@ def add_date(date_uri, year, g, month=None, day=None, label=None):
 
     Return True if date was added.
     """
-    #Date
-    #Filtering out dates that are set to 1900.
+    # Date
+    # Filtering out dates that are set to 1900.
     if year and str(year) != "1900":
         g.add((date_uri, RDF.type, VIVO.DateTimeValue))
-        #Day, month, and year
+        # Day, month, and year
         if day and month:
             g.add((date_uri, VIVO.dateTimePrecision, VIVO.yearMonthDayPrecision))
             g.add((date_uri, VIVO.dateTime,
@@ -124,7 +124,7 @@ def add_date(date_uri, year, g, month=None, day=None, label=None):
             g.add((date_uri,
                    RDFS.label,
                    Literal(label or "%s %s, %s" % (month_int_to_month_str(month), num_to_str(day), num_to_str(year)))))
-        #Month and year
+        # Month and year
         elif month:
             g.add((date_uri, VIVO.dateTimePrecision, VIVO.yearMonthPrecision))
             g.add((date_uri, VIVO.dateTime,
@@ -135,7 +135,7 @@ def add_date(date_uri, year, g, month=None, day=None, label=None):
                    RDFS.label,
                    Literal(label or "%s %s" % (month, num_to_str(year)))))
         else:
-            #Just year
+            # Just year
             g.add((date_uri, VIVO.dateTimePrecision, VIVO.yearPrecision))
             g.add((date_uri, VIVO.dateTime,
                    Literal("%s-01-01T00:00:00" % (
@@ -211,14 +211,14 @@ def xml_result_generator(filepath):
     Returns a generator that provides maps of field names to values read from
     xml produced by mysql --xml.
     """
-    #Using lxml because recover=True makes it tolerant of unicode encoding problems.
+    # Using lxml because recover=True makes it tolerant of unicode encoding problems.
     for event, row_elem in etree.iterparse(filepath, tag="row", recover=True):
         result = {}
         for field_elem in row_elem.iter("field"):
             if "xsi:nil" in field_elem.attrib or not field_elem.text:
                 value = None
             else:
-                #Strip whitespace
+                # Strip whitespace
                 value = field_elem.text.strip()
             result[field_elem.get("name")] = value
         row_elem.clear()
@@ -247,12 +247,12 @@ def valid_college_name(name):
     return False
 
 
-#Register banner dialect
+# Register banner dialect
 csv.register_dialect("banner", delimiter="|")
 
-#Map of banner position codes to VIVO classes
+# Map of banner position codes to VIVO classes
 pos_code_to_classes = {
-    #Research scientist or related
+    # Research scientist or related
     "28101": "NonFacultyAcademic",
     "28301": "NonFacultyAcademic",
     "28302": "NonFacultyAcademic",
@@ -263,10 +263,10 @@ pos_code_to_classes = {
     "19S01": "NonFacultyAcademic",
     "28501": "NonFacultyAcademic",
     "27401": "NonFacultyAcademic",
-    #Postdoc
+    # Postdoc
     "289A1": "Postdoc",
     "289A2": "Postdoc",
-    #Librarian
+    # Librarian
     "307A1": "Librarian",
     "30601": "Librarian",
     "30602": "Librarian",
@@ -302,9 +302,9 @@ def get_non_faculty_gwids(data_dir, non_fac_limit=None):
     for result in xml_result_generator(os.path.join(data_dir, "mygw_users.xml")):
         mygw_gwids.append(result["gw_id"])
 
-    #Only gwids with demographic data
+    # Only gwids with demographic data
     demo_gwids = demographic_intersection(mygw_gwids, data_dir)
-    #Not faculty gwids
+    # Not faculty gwids
     fac_gwids = get_faculty_gwids(data_dir)
     gwids = [gw_id for gw_id in demo_gwids if gw_id not in fac_gwids]
     if non_fac_limit is not None and len(gwids) > non_fac_limit:
@@ -320,7 +320,7 @@ def get_faculty_gwids(data_dir, fac_limit=None):
     demographic data and fis_faculty in certain roles.
     """
     gwids = set()
-    #fis faculty
+    # fis faculty
     for result in xml_result_generator(os.path.join(data_dir, "fis_faculty.xml")):
         if result["role"] in ("Dean", "Dep Head", "Provost", "Faculty", "Faculty-COI", "CLAD"):
             gwids.add(result["gw_id"])
@@ -337,6 +337,7 @@ def format_phone_number(phone_number):
         if len(clean_phone_number) == 10:
             return "%s-%s-%s" % (clean_phone_number[0:3], clean_phone_number[3:6], clean_phone_number[6:])
     return None
+
 
 def frommysqlxml(filename):
     return MySqlXmlView(filename)
@@ -357,7 +358,7 @@ class MySqlXmlView(Table):
                 if "xsi:nil" in field_elem.attrib or not field_elem.text:
                     value = None
                 else:
-                    #Strip whitespace
+                    # Strip whitespace
                     value = unicode(field_elem.text).strip()
                 field_names.append(field_elem.get("name"))
                 values.append(value)

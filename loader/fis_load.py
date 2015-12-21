@@ -5,7 +5,7 @@ import os
 GWU = "The George Washington University"
 
 
-class Loader():
+class Loader:
     def __init__(self, filename, data_dir,
                  gwids=None, entity_class=None, field_to_entity=None, field_rename=None,
                  add_entities_from_fields=None,
@@ -13,19 +13,19 @@ class Loader():
         self.filename = filename
         self.data_dir = data_dir
         self.limit = limit
-        #Map of result field names to entity classes. Classes must take a single positional argument.
+        # Map of result field names to entity classes. Classes must take a single positional argument.
         self.field_to_entity = field_to_entity or {}
-        #Map of result field names to rename.
+        # Map of result field names to rename.
         self.field_rename = field_rename or {}
-        #The entity class to create.
+        # The entity class to create.
         self.entity_class = entity_class
-        #List of fields that contain entities that should be added to graph.
+        # List of fields that contain entities that should be added to graph.
         self.add_entities_from_fields = add_entities_from_fields or []
 
-        #Create an RDFLib Graph
+        # Create an RDFLib Graph
         self.g = Graph(namespace_manager=ns_manager)
 
-        #Gwids
+        # Gwids
         self.gwids = gwids
 
     def load(self):
@@ -36,26 +36,26 @@ class Loader():
         try:
             row_count = 0
             for row_count, result in enumerate(xml_result_generator(os.path.join(self.data_dir, self.filename)),
-                                                start=1):
-                #Check the _use_result function
+                                               start=1):
+                # Check the _use_result function
                 if (self._use_result(result)
-                        #Optionally limit by faculty ids
+                        # Optionally limit by faculty ids
                         and (self.gwids is None or result["gw_id"] in self.gwids)):
-                    #Optionally process the result to change values
+                    # Optionally process the result to change values
                     self._process_result(result)
 
-                    #Optionally map some result values to entities (e.g., organization)
+                    # Optionally map some result values to entities (e.g., organization)
                     for key, clazz in self.field_to_entity.items():
                         if key in result:
                             result[key] = clazz(result[key])
 
-                    #Optionally rename some fields
+                    # Optionally rename some fields
                     for src_key, dest_key in self.field_rename.items():
                         if src_key in result:
                             result[dest_key] = result[src_key]
                             del result[src_key]
 
-                    #Generate the entities
+                    # Generate the entities
                     entities = self._generate_entities(result)
                     for entity in entities:
                         self.g += entity.to_graph()
@@ -67,11 +67,10 @@ class Loader():
                 return None
 
             return self.g
-        #If there is an IOError, log it and return None
+        # If there is an IOError, log it and return None
         except IOError, e:
             warning_log.error("%s: %s", e.strerror, e.filename)
             return None
-
 
     def _addl_entities(self):
         return []
@@ -83,7 +82,7 @@ class Loader():
         pass
 
     def _generate_entities(self, result):
-        #Instantiate an entity using the result as keyword args
+        # Instantiate an entity using the result as keyword args
         entities = [self._create_entity(self.entity_class, result)]
         for field in self.add_entities_from_fields:
             if field in result and result[field] and hasattr(result[field], "to_graph"):
@@ -114,7 +113,7 @@ class BasicLoader(Loader):
 
 
 class DepartmentLoader(Loader):
-    #List of departments that should be modeled as colleges.
+    # List of departments that should be modeled as colleges.
     colleges = ("The Trachtenberg School of Public Policy and Public Administration",
                 "Graduate School of Political Management",
                 "School of Media and Public Affairs",
@@ -131,9 +130,9 @@ class DepartmentLoader(Loader):
         return valid_department_name(result["department"]) and valid_college_name(result["college"])
 
     def _generate_entities(self, result):
-        #College
+        # College
         c = Organization(result["college"], organization_type="College", is_gw=True, part_of=self.gwu)
-        #Department
+        # Department
         d = Organization(result["department"],
                          organization_type="College" if result["department"] in self.colleges else "AcademicDepartment",
                          is_gw=True, part_of=c)
@@ -154,7 +153,7 @@ class FacultyLoader(Loader):
 
     def _process_result(self, result):
         if not (valid_department_name(result["home_department"]) and valid_college_name(result["home_college"])):
-            #Remove home department
+            # Remove home department
             del result["home_department"]
 
 
@@ -179,7 +178,7 @@ class AcademicAppointmentLoader(Loader):
     def _process_result(self, result):
         if valid_department_name(result["department"]):
             result["organization"] = result["department"]
-        #Else, if College name, then College
+        # Else, if College name, then College
         else:
             result["organization"] = result["college"]
 
@@ -207,13 +206,13 @@ class AdminAppointmentLoader(Loader):
         return valid_department_name(result["department"]) or valid_college_name(result["college"])
 
     def _process_result(self, result):
-        #If Department name, then Department
+        # If Department name, then Department
         if valid_department_name(result["department"]):
             result["organization"] = result["department"]
-        #Else, if College name, then College
+        # Else, if College name, then College
         elif valid_college_name(result["college"]):
             result["organization"] = result["college"]
-        #Else GWU
+        # Else GWU
         else:
             result["organization"] = GWU
 
