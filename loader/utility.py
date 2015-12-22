@@ -277,6 +277,18 @@ pos_code_to_classes = {
 }
 
 
+def get_netid_lookup(data_dir):
+    """
+    Returns a map of gwids to netids.
+    """
+    netid_map = {}
+    with codecs.open(os.path.join(data_dir, "vivo_demographic.txt"), 'r', encoding="utf-8") as csv_file:
+        reader = csv.DictReader(csv_file, dialect="banner")
+        for row in reader:
+            netid_map[row["EMPLOYEEID"]] = row["NETID"]
+    return netid_map
+
+
 def demographic_intersection(gwids, data_dir):
     """
     Returns the intersection of a provided list of gwids and the gwids in banner

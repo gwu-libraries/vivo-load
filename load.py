@@ -10,7 +10,7 @@ from loader import banner_load, mygw_load
 from loader.fis_entity import *
 from loader.sparql import load_previous_graph, sparql_load, sparql_delete, serialize
 from rdflib.compare import graph_diff
-from loader.utility import remove_extra_args
+from loader.utility import remove_extra_args, get_netid_lookup
 
 
 def process_graph(g, local_args):
@@ -207,12 +207,16 @@ if __name__ == '__main__':
     if not os.path.exists(store_dir):
         os.mkdir(store_dir)
 
+    #Load netid lookup
+    netid_lookup = get_netid_lookup(args.data_dir)
+
     #Load each data type
     for data_type in args.data_type:
         func_args = vars(args).copy()
         func_args["non_faculty_gwids"] = non_faculty_gwids
         func_args["faculty_gwids"] = faculty_gwids
         func_args["store_dir"] = store_dir
+        func_args["netid_lookup"] = netid_lookup
         args.graph = data_type
         func = data_type_map[data_type]
         #Limit to actual arguments

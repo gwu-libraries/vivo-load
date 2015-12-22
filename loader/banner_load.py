@@ -21,7 +21,7 @@ def print_position_code_to_name(data_dir):
         print "%s --> %s" % (pos_code, positions[pos_code])
 
 
-def load_demographic(data_dir, non_faculty_gwids, faculty_gwids, limit=None):
+def load_demographic(data_dir, non_faculty_gwids, faculty_gwids, netid_lookup, limit=None):
     print """
     Loading demographic. Limit=%s.
     """ % limit
@@ -35,7 +35,7 @@ def load_demographic(data_dir, non_faculty_gwids, faculty_gwids, limit=None):
         for row_count, row in enumerate(reader):
             gw_id = row["EMPLOYEEID"]
             if gw_id in faculty_gwids or gw_id in non_faculty_gwids:
-                p = Person(gw_id)
+                p = Person(netid_lookup[gw_id])
                 p.first_name = row["FIRST_NAME"] if row["FIRST_NAME"] else None
                 p.middle_name = row["MIDDLE_NAME"] if row["MIDDLE_NAME"] else None
                 p.last_name = row["LAST_NAME"] if row["LAST_NAME"] else None
@@ -61,7 +61,7 @@ def load_demographic(data_dir, non_faculty_gwids, faculty_gwids, limit=None):
     return g
 
 
-def load_emplappt(data_dir, non_faculty_gwids, limit=None):
+def load_emplappt(data_dir, non_faculty_gwids, netid_lookup, limit=None):
     #"G17437285","Uv Rsh Assoc Ft","28501","152401"
     print """
     Loading emplappt. Limit=%s.
@@ -77,7 +77,7 @@ def load_emplappt(data_dir, non_faculty_gwids, limit=None):
                 gw_id = row["EMPLOYEEID"]
                 pos_cd = row["POSITION_CLASS"]
                 if gw_id in non_faculty_gwids:
-                    nf = NonFaculty(Person(gw_id), pos_code_to_classes.get(pos_cd, "NonFacultyAcademic"))
+                    nf = NonFaculty(Person(netid_lookup[gw_id]), pos_code_to_classes.get(pos_cd, "NonFacultyAcademic"))
                     nf.title = row["JOB_TITLE"]
                     nf.home_organization = Organization(row["HOME_ORG_CODE"])
                     g += nf.to_graph()
@@ -238,7 +238,7 @@ def load_depart(data_dir, limit=None):
         return None
 
 
-def load_acadappt(data_dir, faculty_gwids, limit=None, load_appt=True):
+def load_acadappt(data_dir, faculty_gwids, netid_lookup, limit=None, load_appt=True):
     print """
     Loading acadappt. Limit=%s. Load appt=%s.
     """ % (limit, load_appt)
@@ -254,7 +254,7 @@ def load_acadappt(data_dir, faculty_gwids, limit=None, load_appt=True):
             for row_count, row in enumerate(reader):
                 gw_id = row["EMPLOYEEID"]
                 if gw_id in faculty_gwids:
-                    f = Faculty(Person(gw_id), load_appt=load_appt)
+                    f = Faculty(Person(netid_lookup[gw_id]), load_appt=load_appt)
                     f.department = Organization(row["DEPARTMENT"])
                     f.title = row["POSITION_TITLE"]
                     f.start_term = row["START_TERM_CODE"]
@@ -273,7 +273,7 @@ def load_acadappt(data_dir, faculty_gwids, limit=None, load_appt=True):
         return None
 
 
-def load_courses(data_dir, non_faculty_gwids, faculty_gwids, limit=None):
+def load_courses(data_dir, non_faculty_gwids, faculty_gwids, netid_lookup, limit=None):
     print """
     Loading courses. Limit=%s.
     """ % limit
@@ -290,7 +290,7 @@ def load_courses(data_dir, non_faculty_gwids, faculty_gwids, limit=None):
             for row_count, row in enumerate(reader, start=1):
                 gw_id = row["EMPLOYEEID"]
                 if gw_id in faculty_gwids or gw_id in non_faculty_gwids:
-                    c = Course(Person(gw_id), row["COURSE_NBR"], row["SUBJECT"], row["COURSE_TITLE"])
+                    c = Course(Person(netid_lookup[gw_id]), row["COURSE_NBR"], row["SUBJECT"], row["COURSE_TITLE"])
                     g += c.to_graph()
 
                     if limit and row_count > limit-1:

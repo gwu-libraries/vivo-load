@@ -5,9 +5,9 @@ import re
 
 
 class Person():
-    def __init__(self, gw_id, load_vcards=True):
-        self.gw_id = gw_id
-        self.uri = D[to_hash_identifier(PREFIX_PERSON, (self.gw_id,))]
+    def __init__(self, netid, load_vcards=True):
+        self.netid = netid
+        self.uri = D[netid]
         self.vcard_uri = self.uri + "-vcard"
         self.load_vcards = load_vcards
 

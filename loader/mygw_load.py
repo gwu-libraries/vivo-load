@@ -8,35 +8,39 @@ from rdflib import Graph
 from utility import xml_result_generator, ns_manager, add_language
 
 
-def load_awards(data_dir, non_faculty_gwids, limit=None):
+def load_awards(data_dir, non_faculty_gwids, netid_lookup, limit=None):
     print "Loading mygw awards."
 
-    l = BasicLoader("mygw_award.xml", data_dir, Award, non_faculty_gwids, limit=limit)
+    l = BasicLoader("mygw_award.xml", data_dir, Award, non_faculty_gwids,
+                    netid_lookup, limit=limit)
     return l.load()
 
 
-def load_professional_memberships(data_dir, non_faculty_gwids, limit=None):
+def load_professional_memberships(data_dir, non_faculty_gwids, netid_lookup, limit=None):
     print "Loading mygw professional memberships."
 
-    l = BasicLoader("mygw_membership.xml", data_dir, ProfessionalMembership, non_faculty_gwids, limit=limit)
+    l = BasicLoader("mygw_membership.xml", data_dir, ProfessionalMembership, non_faculty_gwids,
+                    netid_lookup, limit=limit)
     return l.load()
 
 
-def load_reviewerships(data_dir, non_faculty_gwids, limit=None):
+def load_reviewerships(data_dir, non_faculty_gwids, netid_lookup, limit=None):
     print "Loading mygw reviewerships."
 
-    l = BasicLoader("mygw_editorial.xml", data_dir, Reviewership, non_faculty_gwids, limit=limit)
+    l = BasicLoader("mygw_editorial.xml", data_dir, Reviewership, non_faculty_gwids,
+                    netid_lookup, limit=limit)
     return l.load()
 
 
-def load_presentations(data_dir, non_faculty_gwids, limit=None):
+def load_presentations(data_dir, non_faculty_gwids, netid_lookup, limit=None):
     print "Loading mygw presentations."
 
-    l = BasicLoader("mygw_presentation.xml", data_dir, Presentation, non_faculty_gwids, limit=limit)
+    l = BasicLoader("mygw_presentation.xml", data_dir, Presentation, non_faculty_gwids,
+                    netid_lookup, limit=limit)
     return l.load()
 
 
-def load_users(data_dir, store_dir, non_faculty_gwids, limit=None):
+def load_users(data_dir, store_dir, non_faculty_gwids, netid_lookup, limit=None):
     print "Loading mygw users."
 
     #Setup orcid2vivo store
@@ -48,7 +52,7 @@ def load_users(data_dir, store_dir, non_faculty_gwids, limit=None):
 
     for result_num, result in enumerate(xml_result_generator(os.path.join(data_dir, "mygw_users.xml"))):
         if result["gw_id"] in non_faculty_gwids:
-            person = Person(result["gw_id"])
+            person = Person(netid_lookup[result["gw_id"]])
             #If there is an orcid id, add to store.
             if result["orcid_id"]:
                 store.add(result["orcid_id"], person_uri=person.uri, confirmed=True)

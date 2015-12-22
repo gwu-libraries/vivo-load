@@ -8,11 +8,13 @@ GWU = "The George Washington University"
 class Loader:
     def __init__(self, filename, data_dir,
                  gwids=None, entity_class=None, field_to_entity=None, field_rename=None,
-                 add_entities_from_fields=None,
+                 add_entities_from_fields=None, field_to_lookup=None,
                  limit=None):
         self.filename = filename
         self.data_dir = data_dir
         self.limit = limit
+        # Map of result field names to (new field names, lookup map).
+        self.field_lookup = field_to_lookup or {}
         # Map of result field names to entity classes. Classes must take a single positional argument.
         self.field_to_entity = field_to_entity or {}
         # Map of result field names to rename.
@@ -43,6 +45,13 @@ class Loader:
                         and (self.gwids is None or result["gw_id"] in self.gwids)):
                     # Optionally process the result to change values
                     self._process_result(result)
+
+                    # Optionally lookup some result values
+                    for key, (new_key, lookup_map) in self.field_lookup.items():
+                        if key in result:
+                            result[new_key] = lookup_map[result[key]]
+                            if key != new_key:
+                                del result[key]
 
                     # Optionally map some result values to entities (e.g., organization)
                     for key, clazz in self.field_to_entity.items():
@@ -104,11 +113,12 @@ class BasicLoader(Loader):
     The Organization entity is also added to the graph.
     """
 
-    def __init__(self, filename, data_dir, entity_class, gwids,
+    def __init__(self, filename, data_dir, entity_class, gwids, netid_lookup,
                  limit=None):
         Loader.__init__(self, filename, data_dir, gwids=gwids, entity_class=entity_class,
-                        field_to_entity={"gw_id": Person, "organization": Organization},
-                        field_rename={"gw_id": "person"}, add_entities_from_fields=["organization"],
+                        field_to_entity={"netid": Person, "organization": Organization},
+                        field_rename={"netid": "person"}, add_entities_from_fields=["organization"],
+                        field_to_lookup={"gw_id": ("netid", netid_lookup)},
                         limit=limit)
 
 
@@ -147,9 +157,11 @@ def load_departments(data_dir, limit=None):
 
 
 class FacultyLoader(Loader):
-    def __init__(self, data_dir, gwids, limit=None):
+    def __init__(self, data_dir, gwids, netid_lookup, limit=None):
         Loader.__init__(self, "fis_faculty.xml", data_dir, gwids=gwids, entity_class=Person,
-                        field_to_entity={"home_department": Organization}, limit=limit)
+                        field_to_entity={"home_department": Organization},
+                        field_to_lookup={"gw_id": ("netid", netid_lookup)},
+                        limit=limit)
 
     def _process_result(self, result):
         if not (valid_department_name(result["home_department"]) and valid_college_name(result["home_college"])):
@@ -157,19 +169,20 @@ class FacultyLoader(Loader):
             del result["home_department"]
 
 
-def load_faculty(data_dir, faculty_gwids, limit=None):
+def load_faculty(data_dir, faculty_gwids, netid_lookup, limit=None):
     print "Loading faculty."
 
-    l = FacultyLoader(data_dir, faculty_gwids, limit=limit)
+    l = FacultyLoader(data_dir, faculty_gwids, netid_lookup, limit=limit)
     return l.load()
 
 
 class AcademicAppointmentLoader(Loader):
-    def __init__(self, data_dir, gwids, limit=None):
+    def __init__(self, data_dir, gwids, netid_lookup, limit=None):
         Loader.__init__(self, "fis_academic_appointment.xml", data_dir, gwids=gwids,
                         entity_class=AcademicAppointment,
-                        field_to_entity={"organization": Organization, "gw_id": Person},
-                        field_rename={"gw_id": "person"},
+                        field_to_entity={"organization": Organization, "netid": Person},
+                        field_rename={"netid": "person"},
+                        field_to_lookup={"gw_id": ("netid", netid_lookup)},
                         limit=limit)
 
     def _use_result(self, result):
@@ -183,19 +196,20 @@ class AcademicAppointmentLoader(Loader):
             result["organization"] = result["college"]
 
 
-def load_academic_appointment(data_dir, faculty_gwids, limit=None):
+def load_academic_appointment(data_dir, faculty_gwids, netid_lookup, limit=None):
     print "Loading academic appointments."
 
-    l = AcademicAppointmentLoader(data_dir, faculty_gwids, limit=limit)
+    l = AcademicAppointmentLoader(data_dir, faculty_gwids, netid_lookup, limit=limit)
     return l.load()
 
 
 class AdminAppointmentLoader(Loader):
-    def __init__(self, data_dir, gwids, limit=None):
+    def __init__(self, data_dir, gwids, netid_lookup, limit=None):
         Loader.__init__(self, "fis_admin_appointment.xml", data_dir, gwids=gwids,
                         entity_class=AdminAppointment,
-                        field_to_entity={"organization": Organization, "gw_id": Person},
-                        field_rename={"gw_id": "person"},
+                        field_to_entity={"organization": Organization, "netid": Person},
+                        field_rename={"netid": "person"},
+                        field_to_lookup={"gw_id": ("netid", netid_lookup)},
                         limit=limit)
         self.gwu = Organization(GWU, organization_type="University", is_gw=True)
 
@@ -217,188 +231,211 @@ class AdminAppointmentLoader(Loader):
             result["organization"] = GWU
 
 
-def load_admin_appointment(data_dir, faculty_gwids, limit=None):
+def load_admin_appointment(data_dir, faculty_gwids, netid_lookup, limit=None):
     print "Loading admin appointments."
 
-    l = AdminAppointmentLoader(data_dir, faculty_gwids, limit=limit)
+    l = AdminAppointmentLoader(data_dir, faculty_gwids, netid_lookup, limit=limit)
     return l.load()
 
 
-def load_degree_education(data_dir, faculty_gwids, limit=None):
+def load_degree_education(data_dir, faculty_gwids, netid_lookup, limit=None):
     print "Loading degree education."
 
     l = Loader("fis_degree_education.xml", data_dir, gwids=faculty_gwids, entity_class=DegreeEducation,
-               field_to_entity={"institution": Organization, "gw_id": Person},
-               field_rename={"institution": "organization", "gw_id": "person"},
+               field_to_entity={"institution": Organization, "netid": Person},
+               field_rename={"institution": "organization", "netid": "person"},
                add_entities_from_fields=["organization"],
+               field_to_lookup={"gw_id": ("netid", netid_lookup)},
                limit=limit)
     return l.load()
 
 
-def load_non_degree_education(data_dir, faculty_gwids, limit=None):
+def load_non_degree_education(data_dir, faculty_gwids, netid_lookup, limit=None):
     print "Loading non-degree education."
 
     l = Loader("fis_non_degree_education.xml", data_dir, gwids=faculty_gwids, entity_class=NonDegreeEducation,
-               field_to_entity={"institution": Organization, "gw_id": Person},
-               field_rename={"institution": "organization", "gw_id": "person"},
+               field_to_entity={"institution": Organization, "netid": Person},
+               field_rename={"institution": "organization", "netid": "person"},
                add_entities_from_fields=["organization"],
+               field_to_lookup={"gw_id": ("netid", netid_lookup)},
                limit=limit)
     return l.load()
 
 
-def load_courses(data_dir, faculty_gwids, limit=None,):
+def load_courses(data_dir, faculty_gwids, netid_lookup, limit=None,):
     print "Loading courses taught."
 
-    l = BasicLoader("fis_courses.xml", data_dir, Course, faculty_gwids, limit=limit)
+    l = BasicLoader("fis_courses.xml", data_dir, Course, faculty_gwids,
+                    netid_lookup, limit=limit)
     return l.load()
 
 
-def load_awards(data_dir, faculty_gwids, limit=None):
+def load_awards(data_dir, faculty_gwids, netid_lookup, limit=None):
     print "Loading awards."
 
-    l = BasicLoader("fis_awards.xml", data_dir, Award, faculty_gwids, limit=limit)
+    l = BasicLoader("fis_awards.xml", data_dir, Award, faculty_gwids,
+                    netid_lookup, limit=limit)
     return l.load()
 
 
-def load_professional_memberships(data_dir, faculty_gwids, limit=None):
+def load_professional_memberships(data_dir, faculty_gwids, netid_lookup, limit=None):
     print "Loading professional memberships."
 
-    l = BasicLoader("fis_prof_memberships.xml", data_dir, ProfessionalMembership, faculty_gwids, limit=limit)
+    l = BasicLoader("fis_prof_memberships.xml", data_dir, ProfessionalMembership, faculty_gwids,
+                    netid_lookup, limit=limit)
     return l.load()
 
 
-def load_reviewerships(data_dir, faculty_gwids, limit=None):
+def load_reviewerships(data_dir, faculty_gwids, netid_lookup, limit=None):
     print "Loading reviewerships."
 
-    l = BasicLoader("fis_reviewer.xml", data_dir, Reviewership, faculty_gwids, limit=limit)
+    l = BasicLoader("fis_reviewer.xml", data_dir, Reviewership, faculty_gwids,
+                    netid_lookup, limit=limit)
     return l.load()
 
 
-def load_presentations(data_dir, faculty_gwids, limit=None):
+def load_presentations(data_dir, faculty_gwids, netid_lookup, limit=None):
     print "Loading presentations."
 
-    l = BasicLoader("fis_presentations.xml", data_dir, Presentation, faculty_gwids, limit=limit)
+    l = BasicLoader("fis_presentations.xml", data_dir, Presentation, faculty_gwids,
+                    netid_lookup, limit=limit)
     return l.load()
 
 
-def load_books(data_dir, faculty_gwids, limit=None):
+def load_books(data_dir, faculty_gwids, netid_lookup, limit=None):
     print "Loading books."
 
     l = Loader("fis_books.xml", data_dir, gwids=faculty_gwids, entity_class=Book,
-               field_to_entity={"gw_id": Person, "publisher": Organization},
-               field_rename={"gw_id": "person"}, add_entities_from_fields=["publisher"],
+               field_to_entity={"netid": Person, "publisher": Organization},
+               field_rename={"netid": "person"}, add_entities_from_fields=["publisher"],
+               field_to_lookup={"gw_id": ("netid", netid_lookup)},
                limit=limit)
     return l.load()
 
 
-def load_reports(data_dir, faculty_gwids, limit=None):
+def load_reports(data_dir, faculty_gwids, netid_lookup, limit=None):
     print "Loading reports."
 
     l = Loader("fis_reports.xml", data_dir, gwids=faculty_gwids, entity_class=Book,
-               field_to_entity={"gw_id": Person, "distributor": Organization},
-               field_rename={"gw_id": "person"}, add_entities_from_fields=["distributor"],
+               field_to_entity={"netid": Person, "distributor": Organization},
+               field_rename={"netid": "person"}, add_entities_from_fields=["distributor"],
+               field_to_lookup={"gw_id": ("netid", netid_lookup)},
                limit=limit)
     return l.load()
 
 
-def load_articles(data_dir, faculty_gwids, limit=None):
+def load_articles(data_dir, faculty_gwids, netid_lookup, limit=None):
     print "Loading articles"
 
-    l = BasicLoader("fis_articles.xml", data_dir, Article, faculty_gwids, limit=limit)
+    l = BasicLoader("fis_articles.xml", data_dir, Article, faculty_gwids,
+                    netid_lookup, limit=limit)
     return l.load()
 
 
-def load_academic_articles(data_dir, faculty_gwids, limit=None):
+def load_academic_articles(data_dir, faculty_gwids, netid_lookup, limit=None):
     print "Loading academic articles"
 
-    l = BasicLoader("fis_acad_articles.xml", data_dir, AcademicArticle, faculty_gwids, limit=limit)
+    l = BasicLoader("fis_acad_articles.xml", data_dir, AcademicArticle, faculty_gwids,
+                    netid_lookup, limit=limit)
     return l.load()
 
 
-def load_article_abstracts(data_dir, faculty_gwids, limit=None):
+def load_article_abstracts(data_dir, faculty_gwids, netid_lookup, limit=None):
     print "Loading article abstracts"
 
-    l = BasicLoader("fis_article_abstracts.xml", data_dir, ArticleAbstract, faculty_gwids, limit=limit)
+    l = BasicLoader("fis_article_abstracts.xml", data_dir, ArticleAbstract, faculty_gwids,
+                    netid_lookup, limit=limit)
     return l.load()
 
 
-def load_reviews(data_dir, faculty_gwids, limit=None):
+def load_reviews(data_dir, faculty_gwids, netid_lookup, limit=None):
     print "Loading reviews"
 
-    l = BasicLoader("fis_reviews.xml", data_dir, Review, faculty_gwids, limit=limit)
+    l = BasicLoader("fis_reviews.xml", data_dir, Review, faculty_gwids,
+                    netid_lookup, limit=limit)
     return l.load()
 
 
-def load_reference_articles(data_dir, faculty_gwids, limit=None):
+def load_reference_articles(data_dir, faculty_gwids, netid_lookup, limit=None):
     print "Loading reference articles"
 
-    l = BasicLoader("fis_ref_articles.xml", data_dir, ReferenceArticle, faculty_gwids, limit=limit)
+    l = BasicLoader("fis_ref_articles.xml", data_dir, ReferenceArticle, faculty_gwids,
+                    netid_lookup, limit=limit)
     return l.load()
 
 
-def load_letters(data_dir, faculty_gwids, limit=None):
+def load_letters(data_dir, faculty_gwids, netid_lookup, limit=None):
     print "Loading letters"
 
-    l = BasicLoader("fis_letters.xml", data_dir, Letter, faculty_gwids, limit=limit)
+    l = BasicLoader("fis_letters.xml", data_dir, Letter, faculty_gwids,
+                    netid_lookup, limit=limit)
     return l.load()
 
 
-def load_testimony(data_dir, faculty_gwids, limit=None):
+def load_testimony(data_dir, faculty_gwids, netid_lookup, limit=None):
     print "Loading testimony"
 
-    l = BasicLoader("fis_testimony.xml", data_dir, Testimony, faculty_gwids, limit=limit)
+    l = BasicLoader("fis_testimony.xml", data_dir, Testimony, faculty_gwids,
+                    netid_lookup, limit=limit)
     return l.load()
 
 
-def load_chapters(data_dir, faculty_gwids, limit=None):
+def load_chapters(data_dir, faculty_gwids, netid_lookup, limit=None):
     print "Loading chapters"
 
-    l = BasicLoader("fis_chapters.xml", data_dir, Chapter, faculty_gwids, limit=limit)
+    l = BasicLoader("fis_chapters.xml", data_dir, Chapter, faculty_gwids,
+                    netid_lookup, limit=limit)
     return l.load()
 
 
-def load_conference_abstracts(data_dir, faculty_gwids, limit=None):
+def load_conference_abstracts(data_dir, faculty_gwids, netid_lookup, limit=None):
     print "Loading conference abstracts"
 
-    l = BasicLoader("fis_conf_abstracts.xml", data_dir, ConferenceAbstract, faculty_gwids, limit=limit)
+    l = BasicLoader("fis_conf_abstracts.xml", data_dir, ConferenceAbstract, faculty_gwids,
+                    netid_lookup, limit=limit)
     return l.load()
 
 
-def load_conference_papers(data_dir, faculty_gwids, limit=None):
+def load_conference_papers(data_dir, faculty_gwids, netid_lookup, limit=None):
     print "Loading conference papers"
 
-    l = BasicLoader("fis_conf_papers.xml", data_dir, ConferencePaper, faculty_gwids, limit=limit)
+    l = BasicLoader("fis_conf_papers.xml", data_dir, ConferencePaper, faculty_gwids,
+                    netid_lookup, limit=limit)
     return l.load()
 
 
-def load_conference_posters(data_dir, faculty_gwids, limit=None):
+def load_conference_posters(data_dir, faculty_gwids, netid_lookup, limit=None):
     print "Loading conference posters"
 
-    l = BasicLoader("fis_conf_posters.xml", data_dir, ConferencePoster, faculty_gwids, limit=limit)
+    l = BasicLoader("fis_conf_posters.xml", data_dir, ConferencePoster, faculty_gwids,
+                    netid_lookup, limit=limit)
     return l.load()
 
 
-def load_patents(data_dir, faculty_gwids, limit=None):
+def load_patents(data_dir, faculty_gwids, netid_lookup, limit=None):
     print "Loading patents"
 
-    l = BasicLoader("fis_patents.xml", data_dir, Patent, faculty_gwids, limit=limit)
+    l = BasicLoader("fis_patents.xml", data_dir, Patent, faculty_gwids,
+                    netid_lookup, limit=limit)
     return l.load()
 
 
 class GrantLoader(Loader):
-    def __init__(self, data_dir, gwids, limit=None):
+    def __init__(self, data_dir, gwids, netid_lookup, limit=None):
         Loader.__init__(self, "fis_grants.xml", data_dir, gwids=gwids,
                         entity_class=Grant,
-                        field_to_entity={"awarded_by": Organization, "gw_id": Person},
-                        field_rename={"gw_id": "person"},
+                        field_to_entity={"awarded_by": Organization, "netid": Person},
+                        field_rename={"netid": "person"},
+                        field_to_lookup={"gw_id": ("netid", netid_lookup)},
                         limit=limit)
 
     def _use_result(self, result):
         return result["title"]
 
 
-def load_grants(data_dir, faculty_gwids, limit=None):
+def load_grants(data_dir, faculty_gwids, netid_lookup, limit=None):
     print "Loading grants."
 
-    l = GrantLoader(data_dir, faculty_gwids, limit=limit)
+    l = GrantLoader(data_dir, faculty_gwids,
+                    netid_lookup, limit=limit)
     return l.load()

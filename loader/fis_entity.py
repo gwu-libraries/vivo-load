@@ -5,17 +5,16 @@ from prefixes import *
 
 
 class Person():
-    def __init__(self, gw_id, personal_statement=None, home_department=None, research_areas=None, languages_known=None,
+    def __init__(self, netid, personal_statement=None, home_department=None, research_areas=None, languages_known=None,
                  languages_other=None):
-        self.gw_id = gw_id
+        self.netid = netid
         self.personal_statement = personal_statement
         self.home_department = home_department
         self.research_areas = research_areas
         self.languages_known = languages_known
         self.languages_other = languages_other
 
-
-        self.uri = D[to_hash_identifier(PREFIX_PERSON, (self.gw_id,))]
+        self.uri = D[self.netid]
 
     def to_graph(self):
         #Create an RDFLib Graph
