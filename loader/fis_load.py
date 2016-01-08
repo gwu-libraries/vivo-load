@@ -316,7 +316,7 @@ def load_books(data_dir, faculty_gwids, netid_lookup, limit=None):
 def load_reports(data_dir, faculty_gwids, netid_lookup, limit=None):
     print "Loading reports."
 
-    l = Loader("fis_reports.xml", data_dir, gwids=faculty_gwids, entity_class=Book,
+    l = Loader("fis_reports.xml", data_dir, gwids=faculty_gwids, entity_class=Report,
                field_to_entity={"netid": Person, "distributor": Organization},
                field_rename={"netid": "person"}, add_entities_from_fields=["distributor"],
                field_to_lookup={"gw_id": ("netid", netid_lookup)},
