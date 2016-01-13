@@ -302,6 +302,27 @@ def demographic_intersection(gwids, data_dir):
     return list(demo_gwids.intersection(gwids))
 
 
+def mediaexpert_intersection(gwids, data_dir):
+    """
+    Returns the intersection of a provided list of gwids and the gwids in mediaexpert data.
+    """
+    mediaexpert_gwids = set()
+    for result in xml_result_generator(os.path.join(data_dir, "mygw_mediaexperts.xml")):
+        mediaexpert_gwids.add(result["gw_id"])
+    return list(mediaexpert_gwids.intersection(gwids))
+
+
+def get_skip_name_gwids(data_dir):
+    """
+    Returns the list of gwids for mediaexperts that have names.
+    """
+    skip_name_gwids = set()
+    for result in xml_result_generator(os.path.join(data_dir, "mygw_mediaexperts.xml")):
+        if result["last_name"]:
+            skip_name_gwids.add(result["gw_id"])
+    return list(skip_name_gwids)
+
+
 def get_non_faculty_gwids(data_dir, non_fac_limit=None):
     """
     Returns the list of non-faculty gwids.

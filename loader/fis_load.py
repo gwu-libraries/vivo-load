@@ -8,7 +8,7 @@ GWU = "The George Washington University"
 class Loader:
     def __init__(self, filename, data_dir,
                  gwids=None, entity_class=None, field_to_entity=None, field_rename=None,
-                 add_entities_from_fields=None, field_to_lookup=None,
+                 add_entities_from_fields=None, field_to_lookup=None, remove_fields=None,
                  limit=None):
         self.filename = filename
         self.data_dir = data_dir
@@ -23,6 +23,8 @@ class Loader:
         self.entity_class = entity_class
         # List of fields that contain entities that should be added to graph.
         self.add_entities_from_fields = add_entities_from_fields or []
+        # List of fields to remove
+        self.remove_fields = remove_fields or []
 
         # Create an RDFLib Graph
         self.g = Graph(namespace_manager=ns_manager)
@@ -43,6 +45,11 @@ class Loader:
                 if (self._use_result(result)
                         # Optionally limit by faculty ids
                         and (self.gwids is None or result["gw_id"] in self.gwids)):
+                    # Optionally remove fields
+                    for field in self.remove_fields:
+                        if field in result:
+                            del result[field]
+
                     # Optionally process the result to change values
                     self._process_result(result)
 
@@ -157,10 +164,11 @@ def load_departments(data_dir, limit=None):
 
 
 class FacultyLoader(Loader):
-    def __init__(self, data_dir, gwids, netid_lookup, limit=None):
+    def __init__(self, data_dir, gwids, netid_lookup, is_mediaexpert, limit=None):
         Loader.__init__(self, "fis_faculty.xml", data_dir, gwids=gwids, entity_class=Person,
                         field_to_entity={"home_department": Organization},
                         field_to_lookup={"gw_id": ("netid", netid_lookup)},
+                        remove_fields=["research_areas", "personal_statement"] if is_mediaexpert else None,
                         limit=limit)
 
     def _process_result(self, result):
@@ -169,10 +177,10 @@ class FacultyLoader(Loader):
             del result["home_department"]
 
 
-def load_faculty(data_dir, faculty_gwids, netid_lookup, limit=None):
+def load_faculty(data_dir, faculty_gwids, netid_lookup, is_mediaexpert=False, limit=None):
     print "Loading faculty."
 
-    l = FacultyLoader(data_dir, faculty_gwids, netid_lookup, limit=limit)
+    l = FacultyLoader(data_dir, faculty_gwids, netid_lookup, is_mediaexpert=is_mediaexpert, limit=limit)
     return l.load()
 
 

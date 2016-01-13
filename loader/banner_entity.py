@@ -14,6 +14,7 @@ class Person():
         self.first_name = None
         self.middle_name = None
         self.last_name = None
+        self.suffix = None
         self.address1 = None
         self.address2 = None
         self.address3 = None
@@ -27,10 +28,11 @@ class Person():
         #Create an RDFLib Graph
         g = Graph()
 
-        full_name = join_if_not_empty((self.first_name, self.middle_name, self.last_name))
+        full_name = join_if_not_empty((self.first_name, self.middle_name, self.last_name, self.suffix))
 
         ##Person
-        g.add((self.uri, RDFS.label, Literal(full_name)))
+        if full_name:
+            g.add((self.uri, RDFS.label, Literal(full_name)))
         #Note that not assigning class here.
 
         ##vcard
@@ -40,15 +42,18 @@ class Person():
             #Contact info for
             g.add((self.vcard_uri, OBO.ARG_2000029, self.uri))
             #Name vcard
-            vcard_name_uri = self.uri + "-vcard-name"
-            g.add((vcard_name_uri, RDF.type, VCARD.Name))
-            g.add((self.vcard_uri, VCARD.hasName, vcard_name_uri))
-            if self.first_name:
-                g.add((vcard_name_uri, VCARD.givenName, Literal(self.first_name)))
-            if self.middle_name:
-                g.add((vcard_name_uri, VIVO.middleName, Literal(self.middle_name)))
-            if self.last_name:
-                g.add((vcard_name_uri, VCARD.familyName, Literal(self.last_name)))
+            if self.first_name or self.middle_name or self.last_name:
+                vcard_name_uri = self.uri + "-vcard-name"
+                g.add((vcard_name_uri, RDF.type, VCARD.Name))
+                g.add((self.vcard_uri, VCARD.hasName, vcard_name_uri))
+                if self.first_name:
+                    g.add((vcard_name_uri, VCARD.givenName, Literal(self.first_name)))
+                if self.middle_name:
+                    g.add((vcard_name_uri, VIVO.middleName, Literal(self.middle_name)))
+                if self.last_name:
+                    g.add((vcard_name_uri, VCARD.familyName, Literal(self.last_name)))
+                if self.suffix:
+                    g.add((vcard_name_uri, VCARD.honorificSuffix, Literal(self.suffix)))
 
             #Email vcard
             if self.email:

@@ -3,9 +3,11 @@ from fis_load import BasicLoader
 import orcid2vivo_loader
 import os
 from loader.fis_entity import Award, ProfessionalMembership, Reviewership, Presentation
-from loader.fis_entity import Person
-from rdflib import Graph
-from utility import xml_result_generator, ns_manager, add_language
+from loader.banner_entity import Person
+from utility import xml_result_generator, add_language, to_hash_identifier, join_if_not_empty
+from rdflib import Literal, RDF, RDFS, XSD
+from namespace import *
+from prefixes import PREFIX_RESEARCH_AREA, PREFIX_MULTIMEDIA
 
 
 def load_awards(data_dir, non_faculty_gwids, netid_lookup, limit=None):
@@ -62,6 +64,72 @@ def load_users(data_dir, store_dir, non_faculty_gwids, netid_lookup, limit=None)
                 languages = result["languages"].split(",")
                 for language in languages:
                     add_language(language, person.uri, g)
+            if limit and result_num >= limit-1:
+                break
+
+    return g
+
+def load_mediaexperts(data_dir, store_dir, non_faculty_gwids, faculty_gwids, netid_lookup, limit=None):
+    print "Loading mediaexperts"
+
+    g = Graph(namespace_manager=ns_manager)
+
+    for result_num, result in enumerate(xml_result_generator(os.path.join(data_dir, "mygw_mediaexperts.xml"))):
+        if result["gw_id"] in non_faculty_gwids or result["gw_id"] in faculty_gwids:
+            person = Person(netid_lookup[result["gw_id"]])
+
+            #Add name
+            if result["last_name"]:
+                full_name = join_if_not_empty(
+                        (result["first_name"], result["middle_name"], result["last_name"], result["suffix_name"]))
+                if full_name:
+                    g.add((person.uri, RDFS.label, Literal(full_name)))
+
+                vcard_name_uri = person.uri + "-vcard-name"
+                g.add((vcard_name_uri, RDF.type, VCARD.Name))
+                g.add((person.vcard_uri, VCARD.hasName, vcard_name_uri))
+                if result["first_name"]:
+                    g.add((vcard_name_uri, VCARD.givenName, Literal(result["first_name"])))
+                if result["middle_name"]:
+                    g.add((vcard_name_uri, VIVO.middleName, Literal(result["middle_name"])))
+                if result["last_name"]:
+                    g.add((vcard_name_uri, VCARD.familyName, Literal(result["last_name"])))
+                if result["suffix_name"]:
+                    g.add((vcard_name_uri, VCARD.honorificSuffix, Literal(result["suffix_name"])))
+
+            #Add personal statement
+            if result["personal_statement"]:
+                g.add((person.uri, VIVO.overview, Literal(result["personal_statement"])))
+
+            #Add media mentions
+            if result["media_mentions"]:
+                g.add((person.uri, LOCAL.mediaMentions, Literal(result["media_mentions"])))
+
+            #Add commentary
+            if result["commentary"]:
+                g.add((person.uri, LOCAL.commentary, Literal(result["commentary"])))
+
+            #Add research areas
+            if result["research_areas"]:
+                for research_area in result["research_areas"].split(","):
+                    research_area_uri = D[to_hash_identifier(PREFIX_RESEARCH_AREA, [research_area, ])]
+                    g.add((research_area_uri, RDF.type, SKOS.concept))
+                    g.add((research_area_uri, RDFS.label, Literal(research_area)))
+                    g.add((person.uri, VIVO.hasResearchArea, research_area_uri))
+
+            #Add multimedia
+            if result["multimedia"]:
+                for multimedia_string in result["multimedia"].split(","):
+                    (multimedia_type, multimedia_label, multimedia_url) = multimedia_string.split("|")
+                    multimedia_uri = D[to_hash_identifier(PREFIX_MULTIMEDIA, multimedia_url)]
+                    if multimedia_type == "A":
+                        multimedia_class = BIBO.AudioDocument
+                    else:
+                        multimedia_class = VIVO.Video
+                    g.add((multimedia_uri, RDF.type, multimedia_class))
+                    g.add((person.uri, LOCAL.multimedia, multimedia_uri))
+                    g.add((multimedia_uri, RDFS.label, Literal(multimedia_label)))
+                    g.add((multimedia_uri, VCARD.url, Literal(multimedia_url, datatype=XSD.anyURI)))
             if limit and result_num >= limit-1:
                 break
 
