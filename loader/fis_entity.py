@@ -98,7 +98,8 @@ class Appointment():
         self.start_term = start_term
         self.end_term = end_term
 
-        self.uri = D[to_hash_identifier(PREFIX_APPOINTMENT, (person.uri, organization.uri, rank))]
+        self.uri = D[
+            to_hash_identifier(PREFIX_APPOINTMENT, (person.uri, organization.uri, rank, title, start_term, end_term))]
 
     def to_graph(self):
         #Create an RDFLib Graph
