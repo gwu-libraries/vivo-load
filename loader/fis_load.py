@@ -216,9 +216,6 @@ class AdminAppointmentLoader(Loader):
     def _addl_entities(self):
         return [self.gwu]
 
-    def _use_result(self, result):
-        return valid_department_name(result["department"]) or valid_college_name(result["college"])
-
     def _process_result(self, result):
         # If Department name, then Department
         if valid_department_name(result["department"]):
