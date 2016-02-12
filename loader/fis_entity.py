@@ -46,12 +46,12 @@ class Person():
 
         ##Languages
         if self.languages_known:
-            for language_code in self.languages_known.split(","):
+            for language_code in re.split(", *", self.languages_known):
                 if language_code in language_map:
                     add_language(language_map[language_code], self.uri, g)
 
         if self.languages_other:
-            for language in self.languages_other.split(","):
+            for language in re.split(", *", self.languages_other):
                 add_language(language, self.uri, g)
 
         return g
