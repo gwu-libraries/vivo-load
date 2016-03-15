@@ -28,7 +28,9 @@ class Person():
         #Create an RDFLib Graph
         g = Graph()
 
-        full_name = join_if_not_empty((self.first_name, self.middle_name, self.last_name, self.suffix))
+        # Switched for testing sorting
+        # full_name = join_if_not_empty((self.first_name, self.middle_name, self.last_name, self.suffix))
+        full_name = join_if_not_empty((self.last_name, self.first_name, self.middle_name))
 
         ##Person
         if full_name:
