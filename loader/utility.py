@@ -267,13 +267,15 @@ pos_code_to_classes = {
     "289A1": "Postdoc",
     "289A2": "Postdoc",
     # Librarian
-    "307A1": "Librarian",
-    "30601": "Librarian",
-    "30602": "Librarian",
-    "30402": "Librarian",
+    "OC221": "Librarian",
+    "OC231": "Librarian",
+    "OD311": "Librarian",
+    "OC241": "Librarian",
+    "OC211": "Librarian",
     "30401": "Librarian",
-    "01001": "Librarian",
-    "30501": "Librarian"
+    "OC341": "Librarian",
+    "OA411": "Librarian",
+    "OC321": "Librarian"
 }
 
 
