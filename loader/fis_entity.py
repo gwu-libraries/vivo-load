@@ -38,10 +38,15 @@ class Person:
 
         # Research areas
         if self.research_areas:
-            # Split on ; then ,
-            research_area_split = re.split("; *", self.research_areas)
+            # Research areas will be quoted and comma separated
+            research_area_split = self.research_areas[1:-1].split('","')
+            # If there is only one research area, then try to split it.
             if len(research_area_split) == 1:
-                research_area_split = re.split(", *", self.research_areas)
+                research_areas = research_area_split[0]
+                # Split on ; then ,
+                research_area_split = re.split("; *", research_areas)
+                if len(research_area_split) == 1:
+                    research_area_split = re.split(", *", research_areas)
             for research_area in research_area_split:
                 if research_area:
                     research_area_uri = D[to_hash_identifier(PREFIX_RESEARCH_AREA, [research_area, ])]
