@@ -1,5 +1,5 @@
 from fis_entity import *
-from utility import valid_college_name, valid_department_name
+from utility import valid_college_name, valid_department_name, xml_result_generator, remove_extra_args
 import os
 
 GWU = "The George Washington University"
@@ -40,9 +40,9 @@ class Loader:
             for row_count, result in enumerate(xml_result_generator(os.path.join(self.data_dir, self.filename)),
                                                start=1):
                 # Check the _use_result function
-                if (self._use_result(result)
+                if (self._use_result(result) and
                         # Optionally limit by faculty ids
-                        and (self.gwids is None or result["gw_id"] in self.gwids)):
+                        (self.gwids is None or result["gw_id"] in self.gwids)):
                     # Optionally process the result to change values
                     self._process_result(result)
 
