@@ -1,10 +1,11 @@
-from utility import *
-from rdflib import Graph
+from utility import join_if_not_empty, format_phone_number, to_hash_identifier, add_date_interval, add_season_date
+from rdflib import Literal, RDF, RDFS
 from prefixes import *
+from namespace import *
 import re
 
 
-class Person():
+class Person:
     def __init__(self, netid, load_vcards=True):
         self.netid = netid
         self.uri = D[netid]
@@ -24,22 +25,18 @@ class Person():
         self.phone = None
 
     def to_graph(self):
-        #Create an RDFLib Graph
+        # Create an RDFLib Graph
         g = Graph()
 
         full_name = join_if_not_empty((self.first_name, self.middle_name, self.last_name))
 
-        ##Person
-        g.add((self.uri, RDFS.label, Literal(full_name)))
-        #Note that not assigning class here.
-
-        ##vcard
+        # vcard
         if self.load_vcards:
-            #Main vcard
+            # Main vcard
             g.add((self.vcard_uri, RDF.type, VCARD.Individual))
-            #Contact info for
+            # Contact info for
             g.add((self.vcard_uri, OBO.ARG_2000029, self.uri))
-            #Name vcard
+            # Name vcard
             vcard_name_uri = self.uri + "-vcard-name"
             g.add((vcard_name_uri, RDF.type, VCARD.Name))
             g.add((self.vcard_uri, VCARD.hasName, vcard_name_uri))
@@ -50,7 +47,7 @@ class Person():
             if self.last_name:
                 g.add((vcard_name_uri, VCARD.familyName, Literal(self.last_name)))
 
-            #Email vcard
+            # Email vcard
             if self.email:
                 vcard_email_uri = self.uri + "-vcard-email"
                 g.add((vcard_email_uri, RDF.type, VCARD.Email))
@@ -58,7 +55,7 @@ class Person():
                 g.add((self.vcard_uri, VCARD.hasEmail, vcard_email_uri))
                 g.add((vcard_email_uri, VCARD.email, Literal(self.email)))
 
-            #Phone vcard
+            # Phone vcard
             format_phone = format_phone_number(self.phone)
             if format_phone:
                 vcard_phone_uri = self.uri + "-vcard-phone"
@@ -68,7 +65,7 @@ class Person():
                 g.add((self.vcard_uri, VCARD.hasTelephone, vcard_phone_uri))
                 g.add((vcard_phone_uri, VCARD.telephone, Literal(format_phone)))
 
-            #Address vcard
+            # Address vcard
             if self.address1 and self.city and self.zip:
                 vcard_address_uri = self.uri + "-vcard-address"
                 g.add((vcard_address_uri, RDF.type, VCARD.Address))
@@ -85,7 +82,7 @@ class Person():
         return g
 
 
-class NonFaculty():
+class NonFaculty:
     def __init__(self, person, person_type):
         self.person = person
         self.uri = self.person.uri
@@ -95,27 +92,27 @@ class NonFaculty():
         self.title = None
 
     def to_graph(self):
-        #Create an RDFLib Graph
+        # Create an RDFLib Graph
         g = Graph()
 
-        #Person type
+        # Person type
         g.add((self.uri, RDF.type, getattr(VIVO, self.person_type)))
 
-        #Position
+        # Position
         if self.title:
-            #Remove level from librarian titles, e.g., Uv Librarian 4 FT
+            # Remove level from librarian titles, e.g., Uv Librarian 4 FT
             clean_title = re.sub(r'(Lib(rarian)?) [0-4]', r'\1', self.title)
             appt_uri = D[to_hash_identifier(PREFIX_APPOINTMENT, (self.uri, self.title))]
             g.add((appt_uri, RDF.type, VIVO.NonFacultyAcademicPosition))
             g.add((appt_uri, RDFS.label, Literal(clean_title)))
-            #Related by
+            # Related by
             g.add((self.uri, VIVO.relatedBy, appt_uri))
             g.add((self.home_organization.uri, VIVO.relatedBy, appt_uri))
 
         return g
 
 
-class Faculty():
+class Faculty:
     def __init__(self, person, load_appt=True):
         self.person = person
         self.uri = self.person.uri
@@ -126,18 +123,18 @@ class Faculty():
         self.start_term = None
 
     def to_graph(self):
-        #Create an RDFLib Graph
+        # Create an RDFLib Graph
         g = Graph()
 
-        #Person type
+        # Person type
         g.add((self.uri, RDF.type, VIVO.FacultyMember))
 
-        #Appointment
+        # Appointment
         if self.load_appt:
             appt_uri = D[to_hash_identifier(PREFIX_APPOINTMENT, (self.uri,))]
             g.add((appt_uri, RDF.type, VIVO.FacultyPosition))
             g.add((appt_uri, RDFS.label, Literal(self.title)))
-            #Related by
+            # Related by
             g.add((self.uri, VIVO.relatedBy, appt_uri))
             g.add((self.department.uri, VIVO.relatedBy, appt_uri))
 
@@ -150,7 +147,7 @@ class Faculty():
         return g
 
 
-class Organization():
+class Organization:
 
     def __init__(self, org_id, organization_type="Organization"):
         self.org_id = org_id
@@ -161,25 +158,25 @@ class Organization():
         self.name = None
 
     def to_graph(self):
-        #Create an RDFLib Graph
+        # Create an RDFLib Graph
         g = Graph()
 
-        #Department
+        # Department
         g.add((self.uri, RDF.type,
                FOAF.Organization if self.organization_type == "Organization"
                else getattr(VIVO, self.organization_type)))
         g.add((self.uri, RDF.type, LOCAL.InstitutionalInternal))
         g.add((self.uri, RDFS.label, Literal(self.name)))
 
-        #Part of
+        # Part of
         if self.part_of:
             g.add((self.uri, OBO.BFO_0000050, self.part_of.uri))
 
         return g
 
 
-class Course():
-    #"G10002741","625-25","LAW","200003","Fed Criminal Appellate Clinc","4","9",
+class Course:
+    # "G10002741","625-25","LAW","200003","Fed Criminal Appellate Clinc","4","9",
     def __init__(self, person, course_number, course_subject, course_title):
         self.person = person
         self.course_number = course_number
@@ -189,16 +186,16 @@ class Course():
                                                          self.course_subject))]
 
     def to_graph(self):
-        #Create an RDFLib Graph
+        # Create an RDFLib Graph
         g = Graph()
 
-        #Teacher Role
+        # Teacher Role
         g.add((self.uri, RDF.type, VIVO.TeacherRole))
 
-        #Inheres in person
+        # Inheres in person
         g.add((self.uri, OBO.RO_0000052, self.person.uri))
 
-        #Realized in course
+        # Realized in course
         course_uri = D[to_hash_identifier(PREFIX_COURSE, (self.course_number, self.course_subject))]
         g.add((course_uri, RDF.type, VIVO.Course))
         course_name = "%s (%s %s)" % (self.course_title,

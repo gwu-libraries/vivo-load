@@ -2,6 +2,7 @@ import argparse
 import datetime
 import time
 from collections import OrderedDict
+import os
 
 import loader.fis_load as fis_load
 
@@ -10,24 +11,24 @@ from loader import banner_load, mygw_load
 from loader.fis_entity import *
 from loader.sparql import load_previous_graph, sparql_load, sparql_delete, serialize
 from rdflib.compare import graph_diff
-from loader.utility import remove_extra_args, get_netid_lookup
+from loader.utility import remove_extra_args, get_netid_lookup, warning_log, get_faculty_gwids, get_non_faculty_gwids
 
 
 def process_graph(g, local_args):
-    #G is none if an error occurred.  This leaves the graphs unchanged.
+    # G is none if an error occurred.  This leaves the graphs unchanged.
     if g is not None:
         if local_args.perform_diff:
-            #Load the previous graph
+            # Load the previous graph
             prev_g = load_previous_graph(local_args.graph_dir, local_args.graph)
         else:
             prev_g = Graph(namespace_manager=ns_manager)
 
-        #Find the diff
+        # Find the diff
         (g_both, g_del, g_add) = graph_diff(prev_g, g)
         g_add.namespace_manager = ns_manager
         g_del.namespace_manager = ns_manager
 
-        #Print the diff
+        # Print the diff
         print "To add %s triples." % len(g_add)
         if local_args.print_triples:
             print g_add.serialize(format="turtle")
@@ -43,7 +44,7 @@ def process_graph(g, local_args):
                 sparql_delete(g_del, local_args.endpoint, local_args.username, local_args.password,
                               split_size=local_args.delete_split_size)
 
-        #Save to graphs archive directory
+        # Save to graphs archive directory
         if local_args.perform_load and local_args.perform_serialize:
             serialize(g, local_args.graph_dir, local_args.graph)
     else:
@@ -51,20 +52,20 @@ def process_graph(g, local_args):
 
 
 if __name__ == '__main__':
-    #Logging
-    #Channel
+    # Logging
+    # Channel
     if os.path.exists("load_warnings.txt"):
         os.remove("load_warnings.txt")
     ch = logging.FileHandler("load_warnings.txt", delay=True)
     ch.setLevel(logging.WARNING)
-    #Formatter
+    # Formatter
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-    #Add formatter to ch
+    # Add formatter to ch
     ch.setFormatter(formatter)
     # add ch to logger
     warning_log.addHandler(ch)
 
-    #Argument parser
+    # Argument parser
     parser = argparse.ArgumentParser()
     parser.add_argument("--skip-load", action="store_false", dest="perform_load",
                         help="Generate RDF, but do not load into VIVO.")
@@ -118,7 +119,7 @@ if __name__ == '__main__':
                         help="Run orcid2vivo for orcid ids that have never been loaded or have not been loaded in this "
                              "many days. Default is %s days." % default_orcid2vivo_days)
 
-    #Map of label for data type to load function.
+    # Map of label for data type to load function.
     data_type_map = OrderedDict([
         ("b_demographic", banner_load.load_demographic),
         ("b_organization", banner_load.load_orgn),
@@ -163,17 +164,17 @@ if __name__ == '__main__':
     parser.add_argument("data_type", nargs="+", choices=data_types,
                         help="The type of data to load or all for all data.")
 
-    #Parse
+    # Parse
     args = parser.parse_args()
 
-    #If all selected or resuming
+    # If all selected or resuming
     if "all" in args.data_type or (args.resume and len(args.data_type) == 1):
-        #Forcing skipping appt for b_acadappt
+        # Forcing skipping appt for b_acadappt
         args.load_appt = False
 
     if "all" in args.data_type:
         print "Loading all"
-        #Replace data types with ordered list of all data types
+        # Replace data types with ordered list of all data types
         args.data_type = data_type_map.keys()
 
     if args.resume and len(args.data_type) == 1:
@@ -189,7 +190,7 @@ if __name__ == '__main__':
 
     start_time = time.time()
 
-    #Load non_faculty_gwids and faculty_gwids
+    # Load non_faculty_gwids and faculty_gwids
     if args.non_faculty:
         non_faculty_gwids = args.non_faculty
     else:
@@ -201,16 +202,16 @@ if __name__ == '__main__':
         faculty_gwids = get_faculty_gwids(args.data_dir, args.fac_limit)
     print "%s faculty" % len(faculty_gwids)
 
-    #Setup directory for orcid2vivo
+    # Setup directory for orcid2vivo
     store_dir = os.path.join(args.graph_dir, "orcid")
     print "The store path is %s" % store_dir
     if not os.path.exists(store_dir):
         os.mkdir(store_dir)
 
-    #Load netid lookup
+    # Load netid lookup
     netid_lookup = get_netid_lookup(args.data_dir)
 
-    #Load each data type
+    # Load each data type
     for data_type in args.data_type:
         func_args = vars(args).copy()
         func_args["non_faculty_gwids"] = non_faculty_gwids
@@ -219,12 +220,12 @@ if __name__ == '__main__':
         func_args["netid_lookup"] = netid_lookup
         args.graph = data_type
         func = data_type_map[data_type]
-        #Limit to actual arguments
+        # Limit to actual arguments
         remove_extra_args(func_args, func)
         graph = func(**func_args)
         process_graph(graph, args)
 
-    #Run orcid2vivo
+    # Run orcid2vivo
     if args.perform_orcid2vivo:
         print "Running orcid2vivo."
         before_datetime = datetime.datetime.now() - datetime.timedelta(days=args.orcid2vivo_days)
