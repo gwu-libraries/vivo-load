@@ -39,7 +39,9 @@ class Person:
         # Research areas
         if self.research_areas:
             # Research areas will be quoted and comma separated
-            research_area_split = self.research_areas[1:-1].split('","')
+            clean_research_area = self.research_areas[1:-1] if self.research_areas.startswith(
+                '"') and self.research_areas.endswith('"') else self.research_areas
+            research_area_split = clean_research_area.split('","')
             # If there is only one research area, then try to split it.
             if len(research_area_split) == 1:
                 research_areas = research_area_split[0]
