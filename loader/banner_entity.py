@@ -30,6 +30,10 @@ class Person:
 
         full_name = join_if_not_empty((self.first_name, self.middle_name, self.last_name))
 
+        # Person
+        g.add((self.uri, RDFS.label, Literal(full_name)))
+        # Note that not assigning class here.
+        
         # vcard
         if self.load_vcards:
             # Main vcard
