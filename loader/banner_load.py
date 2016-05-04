@@ -21,11 +21,11 @@ def print_position_code_to_name(data_dir):
         print "%s --> %s" % (pos_code, positions[pos_code])
 
 
-def load_demographic(data_dir, non_faculty_gwids, faculty_gwids, netid_lookup, limit=None):
+def load_demographic(data_dir, non_faculty_gwids, faculty_gwids, netid_lookup, skip_name_gwids=None, limit=None):
     print """
     Loading demographic. Limit=%s.
     """ % limit
-    #Create an RDFLib Graph
+    # Create an RDFLib Graph
     g = Graph(namespace_manager=ns_manager)
 
     with open(os.path.join(data_dir, "vivo_demographic.txt"), 'rb') as csv_file:
@@ -36,9 +36,10 @@ def load_demographic(data_dir, non_faculty_gwids, faculty_gwids, netid_lookup, l
             gw_id = row["EMPLOYEEID"]
             if gw_id in faculty_gwids or gw_id in non_faculty_gwids:
                 p = Person(netid_lookup[gw_id])
-                p.first_name = row["FIRST_NAME"] if row["FIRST_NAME"] else None
-                p.middle_name = row["MIDDLE_NAME"] if row["MIDDLE_NAME"] else None
-                p.last_name = row["LAST_NAME"] if row["LAST_NAME"] else None
+                if skip_name_gwids is None or gw_id not in skip_name_gwids:
+                    p.first_name = row["FIRST_NAME"] if row["FIRST_NAME"] else None
+                    p.middle_name = row["MIDDLE_NAME"] if row["MIDDLE_NAME"] else None
+                    p.last_name = row["LAST_NAME"] if row["LAST_NAME"] else None
                 p.address1 = row["ADDRESS_LINE1"] if row["ADDRESS_LINE1"] else None
                 p.address2 = row["ADDRESS_LINE2"] if row["ADDRESS_LINE2"] else None
                 p.address3 = row["ADDRESS_LINE3"] if row["ADDRESS_LINE3"] else None

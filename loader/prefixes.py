@@ -1,4 +1,4 @@
-#Prefixes
+# Prefixes
 PREFIX_APPOINTMENT = "apt"
 PREFIX_AWARD_RECEIPT = "awdrec"
 PREFIX_AWARD = "awd"
@@ -20,3 +20,4 @@ PREFIX_RESEARCH_AREA = "ra"
 PREFIX_REVIEWERSHIP = "rev"
 PREFIX_TEACHER = "tch"
 PREFIX_LANGUAGE = "lang"
+PREFIX_MULTIMEDIA = "multimedia"

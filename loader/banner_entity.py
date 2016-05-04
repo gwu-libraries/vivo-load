@@ -34,8 +34,10 @@ class Person:
             ("{},".format(self.last_name) if self.last_name else self.last_name, self.first_name, self.middle_name))
 
         # Person
-        g.add((self.uri, RDFS.label, Literal(inverse_full_name)))
-        g.add((self.uri, LOCAL.normalOrderName, Literal(full_name)))
+        if inverse_full_name:
+            g.add((self.uri, RDFS.label, Literal(inverse_full_name)))
+        if full_name:
+            g.add((self.uri, LOCAL.normalOrderName, Literal(full_name)))
         # Note that not assigning class here.
 
         # vcard
@@ -45,15 +47,16 @@ class Person:
             # Contact info for
             g.add((self.vcard_uri, OBO.ARG_2000029, self.uri))
             # Name vcard
-            vcard_name_uri = self.uri + "-vcard-name"
-            g.add((vcard_name_uri, RDF.type, VCARD.Name))
-            g.add((self.vcard_uri, VCARD.hasName, vcard_name_uri))
-            if self.first_name:
-                g.add((vcard_name_uri, VCARD.givenName, Literal(self.first_name)))
-            if self.middle_name:
-                g.add((vcard_name_uri, VIVO.middleName, Literal(self.middle_name)))
-            if self.last_name:
-                g.add((vcard_name_uri, VCARD.familyName, Literal(self.last_name)))
+            if self.first_name or self.middle_name or self.last_name:
+                vcard_name_uri = self.uri + "-vcard-name"
+                g.add((vcard_name_uri, RDF.type, VCARD.Name))
+                g.add((self.vcard_uri, VCARD.hasName, vcard_name_uri))
+                if self.first_name:
+                    g.add((vcard_name_uri, VCARD.givenName, Literal(self.first_name)))
+                if self.middle_name:
+                    g.add((vcard_name_uri, VIVO.middleName, Literal(self.middle_name)))
+                if self.last_name:
+                    g.add((vcard_name_uri, VCARD.familyName, Literal(self.last_name)))
 
             # Email vcard
             if self.email:

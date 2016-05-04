@@ -11,7 +11,8 @@ from loader import banner_load, mygw_load
 from loader.fis_entity import *
 from loader.sparql import load_previous_graph, sparql_load, sparql_delete, serialize
 from rdflib.compare import graph_diff
-from loader.utility import remove_extra_args, get_netid_lookup, warning_log, get_faculty_gwids, get_non_faculty_gwids
+from loader.utility import remove_extra_args, get_netid_lookup, warning_log, get_faculty_gwids, get_non_faculty_gwids, \
+    mediaexpert_intersection, get_skip_name_gwids
 
 
 def process_graph(g, local_args):
@@ -118,6 +119,8 @@ if __name__ == '__main__':
     parser.add_argument("--orcid2vivo-days", type=int, default=default_orcid2vivo_days,
                         help="Run orcid2vivo for orcid ids that have never been loaded or have not been loaded in this "
                              "many days. Default is %s days." % default_orcid2vivo_days)
+    parser.add_argument("--mediaexpert", action="store_true", dest="is_mediaexpert",
+                        help="Perform a media expert load.")
 
     # Map of label for data type to load function.
     data_type_map = OrderedDict([
@@ -176,6 +179,9 @@ if __name__ == '__main__':
         print "Loading all"
         # Replace data types with ordered list of all data types
         args.data_type = data_type_map.keys()
+        if args.is_mediaexpert:
+            data_type_map["mygw_mediaexperts"] = mygw_load.load_mediaexperts
+            args.data_type.append("mygw_mediaexperts")
 
     if args.resume and len(args.data_type) == 1:
         resume_data_type = args.data_type[0]
@@ -195,11 +201,18 @@ if __name__ == '__main__':
         non_faculty_gwids = args.non_faculty
     else:
         non_faculty_gwids = get_non_faculty_gwids(args.data_dir, args.non_fac_limit)
+    # For mediaexpert, this is further limited.
+    if args.is_mediaexpert:
+        non_faculty_gwids = mediaexpert_intersection(non_faculty_gwids, args.data_dir)
     print "%s non-faculty" % len(non_faculty_gwids)
+
     if args.faculty:
         faculty_gwids = args.faculty
     else:
         faculty_gwids = get_faculty_gwids(args.data_dir, args.fac_limit)
+    # For mediaexpert, this is further limited.
+    if args.is_mediaexpert:
+        faculty_gwids = mediaexpert_intersection(faculty_gwids, args.data_dir)
     print "%s faculty" % len(faculty_gwids)
 
     # Setup directory for orcid2vivo
@@ -211,6 +224,9 @@ if __name__ == '__main__':
     # Load netid lookup
     netid_lookup = get_netid_lookup(args.data_dir)
 
+    # Load skip name gwids
+    skip_name_gwids = get_skip_name_gwids(args.data_dir) if args.is_mediaexpert else []
+
     # Load each data type
     for data_type in args.data_type:
         func_args = vars(args).copy()
@@ -218,6 +234,7 @@ if __name__ == '__main__':
         func_args["faculty_gwids"] = faculty_gwids
         func_args["store_dir"] = store_dir
         func_args["netid_lookup"] = netid_lookup
+        func_args["skip_name_gwids"] = skip_name_gwids
         args.graph = data_type
         func = data_type_map[data_type]
         # Limit to actual arguments
