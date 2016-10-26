@@ -14,7 +14,7 @@ BIBO = Namespace('http://purl.org/ontology/bibo/')
 #The FOAF namespace
 FOAF = Namespace('http://xmlns.com/foaf/0.1/')
 #The GW Local namespace
-LOCAL = Namespace('http://vivo.gwu.edu/ontology/local#')
+LOCAL = Namespace('https://expert.gwu.edu/ontology/local#')
 #The SKOS namespace
 SKOS = Namespace('http://www.w3.org/2004/02/skos/core#')
 #The Linkvoj namespace
