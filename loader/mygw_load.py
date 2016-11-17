@@ -6,7 +6,8 @@ import os
 from loader.fis_entity import Award, ProfessionalMembership, Reviewership, Presentation
 from loader.fis_entity import Person
 from rdflib import Literal, RDF, RDFS, XSD
-from utility import xml_result_generator, add_language, warning_log, join_if_not_empty, to_hash_identifier
+from utility import xml_result_generator, add_language, warning_log, join_if_not_empty, to_hash_identifier, \
+    add_multimedia
 from namespace import *
 from prefixes import PREFIX_RESEARCH_AREA, PREFIX_MULTIMEDIA
 import logging
@@ -72,7 +73,7 @@ def load_users(data_dir, store_dir, non_faculty_gwids, netid_lookup, limit=None)
                 languages = result["languages"].split(",")
                 for language in languages:
                     add_language(language, person.uri, g)
-            if limit and result_num >= limit-1:
+            if limit and result_num >= limit - 1:
                 break
 
     return g
@@ -118,11 +119,11 @@ def load_mediaexperts(data_dir, store_dir, non_faculty_gwids, faculty_gwids, net
 
             # Add media mentions
             if result["media_mentions"]:
-                g.add((person.uri, LOCAL.mediaMentions, Literal(result["media_mentions"])))
+                add_multimedia(result["media_mentions"], person.uri, LOCAL.mediaMentions, g)
 
             # Add commentary
             if result["commentary"]:
-                g.add((person.uri, LOCAL.commentary, Literal(result["commentary"])))
+                add_multimedia(result["commentary"], person.uri, LOCAL.commentary, g)
 
             # Add research areas
             if result["research_areas"]:
@@ -134,18 +135,8 @@ def load_mediaexperts(data_dir, store_dir, non_faculty_gwids, faculty_gwids, net
 
             # Add multimedia
             if result["multimedia"]:
-                for multimedia_string in result["multimedia"].split(","):
-                    (multimedia_type, multimedia_label, multimedia_url) = multimedia_string.split("|")
-                    multimedia_uri = D[to_hash_identifier(PREFIX_MULTIMEDIA, multimedia_url)]
-                    if multimedia_type == "A":
-                        multimedia_class = BIBO.AudioDocument
-                    else:
-                        multimedia_class = VIVO.Video
-                    g.add((multimedia_uri, RDF.type, multimedia_class))
-                    g.add((person.uri, LOCAL.multimedia, multimedia_uri))
-                    g.add((multimedia_uri, RDFS.label, Literal(multimedia_label)))
-                    g.add((multimedia_uri, VCARD.url, Literal(multimedia_url, datatype=XSD.anyURI)))
-            if limit and result_num >= limit-1:
+                add_multimedia(result["multimedia"], person.uri, LOCAL.multimedia, g)
+            if limit and result_num >= limit - 1:
                 break
 
     return g

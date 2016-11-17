@@ -10,7 +10,7 @@ import codecs
 import os
 import petl as etl
 import re
-from loader.prefixes import PREFIX_LANGUAGE
+from loader.prefixes import PREFIX_LANGUAGE, PREFIX_MULTIMEDIA
 from lxml import etree
 from petl.util.base import Table
 from rdflib import Literal, RDF, RDFS, XSD
@@ -198,6 +198,20 @@ def add_language(language, person_uri, g):
     g.add((language_uri, RDF.type, LINKVOJ.Lingvo))
     g.add((language_uri, RDFS.label, Literal(language)))
     g.add((person_uri, LINKVOJ.expertUnderstanding, language_uri))
+
+
+def add_multimedia(multimedia, person_uri, multimedia_predicate, g):
+    for multimedia_string in multimedia.split(","):
+        (multimedia_type, multimedia_label, multimedia_url) = multimedia_string.split("|")
+        multimedia_uri = D[to_hash_identifier(PREFIX_MULTIMEDIA, multimedia_url)]
+        if multimedia_type == "A":
+            multimedia_class = BIBO.AudioDocument
+        else:
+            multimedia_class = VIVO.Video
+        g.add((multimedia_uri, RDF.type, multimedia_class))
+        g.add((person_uri, multimedia_predicate, multimedia_uri))
+        g.add((multimedia_uri, RDFS.label, Literal(multimedia_label)))
+        g.add((multimedia_uri, VCARD.url, Literal(multimedia_url, datatype=XSD.anyURI)))
 
 
 def strip_gw_prefix(string):
