@@ -206,6 +206,8 @@ def add_multimedia(multimedia, person_uri, multimedia_predicate, g):
         multimedia_uri = D[to_hash_identifier(PREFIX_MULTIMEDIA, multimedia_url)]
         if multimedia_type == "A":
             multimedia_class = BIBO.AudioDocument
+        elif multimedia_type == "O":
+            multimedia_class = BIBO.Webpage
         else:
             multimedia_class = VIVO.Video
         g.add((multimedia_uri, RDF.type, multimedia_class))
