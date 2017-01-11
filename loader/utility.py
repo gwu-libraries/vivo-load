@@ -201,8 +201,10 @@ def add_language(language, person_uri, g):
 
 
 def add_multimedia(multimedia, person_uri, multimedia_predicate, g):
-    for multimedia_string in multimedia.split(","):
-        (multimedia_type, multimedia_label, multimedia_url) = multimedia_string.split("|")
+    if not multimedia.endswith(","):
+        multimedia += ","
+    for multimedia_string in re.findall(r".\|.+?\|.+?,", multimedia):
+        (multimedia_type, multimedia_label, multimedia_url) = multimedia_string[:-1].split("|")
         multimedia_uri = D[to_hash_identifier(PREFIX_MULTIMEDIA, multimedia_url)]
         if multimedia_type == "A":
             multimedia_class = BIBO.AudioDocument
